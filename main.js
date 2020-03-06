@@ -89,6 +89,8 @@ server.listen(8080);
 
 
 
+// we show the window inactive to not interfere with what the user is currently doing
+// In this case, I am the user - the developer and my editor losing focus annoys me :sad-face:
 async function createWindow () {
   // session.defaultSession.webRequest.onHeadersReceived(x => console.log(x))
   // Create the browser window.
@@ -96,6 +98,7 @@ async function createWindow () {
     width: 800,
     height: 600,
     frame: false,
+    show: false,
 
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -106,6 +109,7 @@ async function createWindow () {
   allowFrames(mainWindow.webContents.session)
 
   await loadURL(mainWindow);
+  mainWindow.once('ready-to-show', () => mainWindow.showInactive())
 
   // The above is equivalent to this:
   await mainWindow.loadURL('app://tuna');
