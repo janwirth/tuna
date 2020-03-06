@@ -1,10 +1,17 @@
 # Music Library
 A tool for people who like their own music files.
 
+## Installation
+For now you have to clone and build it yourself
+
 ## Running
 ```sh
 npm i && npm start
 ```
+
+## Design
+For people who like to own their music:
+A lightweight iTunes alternative that syncs your devices and integrates with bandcamp.
 
 ## User Stories
 - [x] In order to listen to music I want to have a player with play / pause button
@@ -26,3 +33,8 @@ npm i && npm start
     - 'working well together' tool
     - or both?
 - [ ] In order to get comfortable with the app quickly I want simple text-based onboarding when absolutely necessary
+
+## Architecture
+- bandcamp login lives inside in iframe because it requires a captcha
+- client/server between elm and http server (considering iso-elm)
+    - Port functions were not available using `BrowserWindow.webContents`
