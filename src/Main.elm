@@ -210,7 +210,7 @@ view_ model =
 
         playlists =
                 Element.column
-                    ([Element.clipX, Element.width <| Element.px 300, Element.height Element.fill, Element.Background.color playerGrey])
+                    ([Element.clipX, Element.width <| Element.px 300, Element.height Element.fill, Element.Background.color offWhite])
                     (List.map (viewPlaylist model) model.playlists)
         filesList =
             Element.column
@@ -223,17 +223,22 @@ view_ model =
             [playback model, Element.row [Element.height Element.fill, Element.width Element.fill] [playlists, filesList]]
 
 playerGrey = Element.rgb 0.95 0.955 0.96
+offWhite = Element.rgb 0.97 0.975 0.98
 
 playback : Model -> Element.Element Msg
 playback model =
     let
+        playbackBarAttribs =
+            [Element.height <| Element.px 54, Element.spacing 5, Element.width Element.fill, Element.Background.color <| playerGrey]
+        marqueeStyles = [draggable, Element.height Element.fill, Element.width (Element.fillPortion 1 |> Element.minimum 150), Element.Font.color blue]
         playingMarquee txt =
             Element.el
-                [Element.width (Element.fillPortion 1 |> Element.minimum 150), Element.Font.color blue]
-                <| Element.html (Html.node "marquee" [] [Html.text txt])
+                marqueeStyles
+                <| Element.el [Element.centerY] <| Element.html (Html.node "marquee" [] [Html.text txt])
+        draggable = Element.htmlAttribute <| Html.Attributes.style "-webkit-app-region" "drag"
     in
         Element.row
-         [Element.height <| Element.px 54, Element.spacing 5, Element.width Element.fill, Element.Background.color <| playerGrey]
+         playbackBarAttribs
             <| case model.playback of
                 Just f ->
                      [ playingMarquee f.name
