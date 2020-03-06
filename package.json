@@ -3,17 +3,21 @@
   "version": "0.0.1",
   "description": "A cross-platform iTunes alternative",
   "main": "main.js",
+  "author": "Jan Wirth <contact@jan-wirth.de>",
   "scripts": {
     "start": "concurrently --raw npm:elm npm:electron",
     "elm": "nodemon --exec \"elm make --debug src/Main.elm\" -w src -e elm",
-    "electron": "nodemon --exec \"electron .\" -w . -e js"
+    "electron": "nodemon --exec \"electron .\" -w . -e js",
+    "build": "elm make src/Main.elm --optimize && electron-builder"
+
   },
   "keywords": [
     "Electron"
   ],
   "license": "MIT",
   "devDependencies": {
-    "electron": "^8.0.3"
+    "electron": "^8.0.3",
+    "electron-builder": "^22.4.0"
   },
   "dependencies": {
     "concurrently": "^5.1.0",
