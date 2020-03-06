@@ -13,6 +13,7 @@
             "elm/http": "2.0.0",
             "elm/json": "1.1.3",
             "elm/url": "1.0.0",
+            "elm-community/list-extra": "8.2.3",
             "mdgriffith/elm-ui": "1.1.5",
             "proda-ai/elm-dropzone": "1.0.1"
         },

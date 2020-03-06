@@ -16,6 +16,7 @@ import Element
 import Element.Background
 import Element.Events
 import Element.Border
+import List.Extra
 import File
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -167,10 +168,15 @@ update msg model =
             (mdl, persist mdl)
     DropZoneMsg (DropZone.Drop files) ->
         let
-            audioOnly = Debug.log "files" (files |> List.filter (Tuple.second >> File.mime >> String.contains "audio"))
+            audioOnly =
+                files
+                |> List.filter (Tuple.second >> File.mime >> String.contains "audio")
+                |> List.map Tuple.first
+            ensureUnique = List.Extra.uniqueBy .path
+
             mdl = { model -- Make sure to update the DropZone model
                   | dropZone = DropZone.update (DropZone.Drop files) model.dropZone
-                  , files = model.files ++ (List.map Tuple.first audioOnly)
+                  , files = model.files ++ audioOnly |> ensureUnique
                   }
         in
         (mdl, persist mdl)
@@ -191,7 +197,7 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    Element.layout [jetMono] <| view_ model
+    Element.layout [jetMono, Element.height Element.fill] <| view_ model
 
 view_ : Model -> Element.Element Msg
 view_ model =
@@ -213,8 +219,9 @@ view_ model =
     in
         dropArea 
         <| Element.column
-            [Element.width Element.fill]
-            [playback model, Element.row [] [playlists, filesList]]
+            [Element.width Element.fill, Element.height Element.fill]
+            [playback model, Element.row [Element.height Element.fill, Element.width Element.fill] [playlists, filesList]]
+
 playerGrey = Element.rgb 0.95 0.955 0.96
 
 playback : Model -> Element.Element Msg
