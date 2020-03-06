@@ -11,7 +11,7 @@ import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (style)
-import DropZone exposing (..)
+import DropZone
 import Element
 import Element.Background
 import Element.Events
@@ -23,6 +23,8 @@ import Json.Encode as Encode
 import Http
 import Element.Font
 import Url
+import Model exposing (..)
+import Msg exposing (..)
 
 persist_ = always Cmd.none
 
@@ -50,7 +52,6 @@ readDirectories directories =
     in
     Http.post params
 
-type alias DropPayload = List TransferItem
 
 uriDecorder : Decode.Decoder DropPayload
 uriDecorder =
@@ -77,14 +78,6 @@ uriDecorder =
     in
         filesDecoder
 
-type alias File = File.File
-encodeFile _ = Encode.null
-decodeFile = File.decoder
-
-type TransferItem =
-    DroppedFile FileRef
-    | DroppedDirectory String
-
 restore : Cmd Msg
 restore =
     let
@@ -94,69 +87,6 @@ restore =
             }
     in
     Http.get params
-
-type alias DropZoneModel = DropZone.Model
-
-encodeDropZoneModel _ = Encode.null
-decodeDropZoneModel = Decode.succeed DropZone.init
-
--- [decgen-start]
-type alias FileRef = {name : String, path: String}
-
-type alias Model =
-    { dropZone : DropZoneModel
-    , files : List FileRef
-    , playback : Maybe FileRef
-    , playlists : List String
-    , activePlaylist : Maybe String
-    }
-
--- [decgen-generated-start] -- DO NOT MODIFY or remove this line
-decodeFileRef =
-   Decode.map2
-      FileRef
-         ( Decode.field "name" Decode.string )
-         ( Decode.field "path" Decode.string )
-
-decodeModel =
-   Decode.map5
-      Model
-         ( Decode.field "dropZone" decodeDropZoneModel )
-         ( Decode.field "files" (Decode.list decodeFileRef) )
-         ( Decode.field "playback" (Decode.maybe decodeFileRef) )
-         ( Decode.field "playlists" (Decode.list Decode.string) )
-         ( Decode.field "activePlaylist" (Decode.maybe Decode.string) )
-
-encodeFileRef a =
-   Encode.object
-      [ ("name", Encode.string a.name)
-      , ("path", Encode.string a.path)
-      ]
-
-encodeMaybeFileRef a =
-   case a of
-      Just b->
-         encodeFileRef b
-      Nothing->
-         Encode.null
-
-encodeMaybeString a =
-   case a of
-      Just b->
-         Encode.string b
-      Nothing->
-         Encode.null
-
-encodeModel a =
-   Encode.object
-      [ ("dropZone", encodeDropZoneModel a.dropZone)
-      , ("files", (Encode.list encodeFileRef) a.files)
-      , ("playback", encodeMaybeFileRef a.playback)
-      , ("playlists", (Encode.list Encode.string) a.playlists)
-      , ("activePlaylist", encodeMaybeString a.activePlaylist)
-      ] 
--- [decgen-end]
-
 
 
 
@@ -190,17 +120,6 @@ initModel =
     , activePlaylist = Just "Jazz"
     }
 
-
-
--- UPDATE
-
-
-type Msg
-  = DropZoneMsg (DropZone.DropZoneMessage DropPayload)
-  | FilesRead (Result Http.Error (List FileRef))
-  | Play FileRef
-  | Saved
-  | Restored (Result Http.Error Model)
 
 ensureUnique = List.Extra.uniqueBy .path
 
@@ -329,7 +248,7 @@ player {path, name} =
             |> Debug.log "fileUri"
         audioSrc = Html.Attributes.src fileUri
         attribs =
-            [ Html.Attributes.autoplay True
+            [ Html.Attributes.autoplay False
             , audioSrc
             , Html.Attributes.type_ "audio/wav"
             , Html.Attributes.controls True
@@ -414,7 +333,7 @@ jetMono =
 
 dropHandler : List (Element.Attribute Msg)
 dropHandler =
-    dropZoneEventHandlers uriDecorder
+    DropZone.dropZoneEventHandlers uriDecorder
     |> List.map (Element.htmlAttribute >> Element.mapAttribute DropZoneMsg)
 
 dropAreaStyles {dropZone} =
