@@ -22,6 +22,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Http
 import Element.Font
+import Url
 
 persist_ = always Cmd.none
 
@@ -36,6 +37,53 @@ persist model =
             }
     in
     Http.post params
+
+readDirectories : List String -> Cmd Msg
+readDirectories directories =
+    let
+        encoded = Encode.list Encode.string directories
+        params =
+            { url = "http://localhost:8080/import"
+            , body = Http.jsonBody encoded
+            , expect = Http.expectJson FilesRead (Decode.list decodeFileRef)
+            }
+    in
+    Http.post params
+
+type alias DropPayload = List TransferItem
+
+uriDecorder : Decode.Decoder DropPayload
+uriDecorder =
+    let
+        filesDecoder = Decode.at
+            ["dataTransfer", "files"]
+            ( Decode.list (File.decoder |> Decode.andThen detect) |> Decode.map (List.filterMap identity)
+            )
+
+        detect : File.File -> Decode.Decoder (Maybe TransferItem)
+        detect file =
+            let
+                isAudio = file |> File.mime |> String.contains "audio"
+                isDir = File.mime file == ""
+                decodeAudioFile =
+                    decodeFileRef
+                    |> Decode.map (DroppedFile >> Just)
+            in
+                case (isAudio, isDir) of
+                    (True, _) ->
+                        decodeAudioFile
+                    (_, True) -> Decode.field "path" Decode.string |> Decode.map (DroppedDirectory >> Just)
+                    _ -> Decode.succeed Nothing
+    in
+        filesDecoder
+
+type alias File = File.File
+encodeFile _ = Encode.null
+decodeFile = File.decoder
+
+type TransferItem =
+    DroppedFile FileRef
+    | DroppedDirectory String
 
 restore : Cmd Msg
 restore =
@@ -112,10 +160,6 @@ encodeModel a =
 
 
 
-uriDecorder =
-    Decode.at ["dataTransfer", "files"] (Decode.list (Decode.map2 Tuple.pair decodeFileRef File.decoder))
-
-
 -- MAIN
 
 
@@ -152,11 +196,13 @@ initModel =
 
 
 type Msg
-  = DropZoneMsg (DropZone.DropZoneMessage (List (FileRef, File.File)))
+  = DropZoneMsg (DropZone.DropZoneMessage DropPayload)
+  | FilesRead (Result Http.Error (List FileRef))
   | Play FileRef
   | Saved
   | Restored (Result Http.Error Model)
 
+ensureUnique = List.Extra.uniqueBy .path
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -168,18 +214,25 @@ update msg model =
             (mdl, persist mdl)
     DropZoneMsg (DropZone.Drop files) ->
         let
-            audioOnly =
+            newAudioFiles =
                 files
-                |> List.filter (Tuple.second >> File.mime >> String.contains "audio")
-                |> List.map Tuple.first
-            ensureUnique = List.Extra.uniqueBy .path
+                |> List.filterMap (\droppedItem -> case droppedItem of
+                        DroppedFile file -> Just file
+                        DroppedDirectory _ -> Nothing
+                    )
+            newDirectories =
+                files
+                |> List.filterMap (\droppedItem -> case droppedItem of
+                        DroppedFile _ -> Nothing
+                        DroppedDirectory dirPath -> Just dirPath
+                    )
 
             mdl = { model -- Make sure to update the DropZone model
                   | dropZone = DropZone.update (DropZone.Drop files) model.dropZone
-                  , files = model.files ++ audioOnly |> ensureUnique
+                  , files = model.files ++ newAudioFiles |> ensureUnique
                   }
         in
-        (mdl, persist mdl)
+        (mdl, Cmd.batch [persist mdl, readDirectories newDirectories ])
     DropZoneMsg a ->
         -- These are the other DropZone actions that are not exposed,
         -- but you still need to hand it to DropZone.update so
@@ -187,9 +240,20 @@ update msg model =
         ({ model | dropZone = DropZone.update a model.dropZone }, Cmd.none)
     Saved -> (model, Cmd.none)
     Restored res ->
-        case Debug.log "res" res of
+        case res of
             Err e -> (model, Cmd.none)
             Ok restored -> (restored, Cmd.none)
+    FilesRead res ->
+        case res of
+            Err e -> (model, Cmd.none)
+            Ok newAudioFiles ->
+                let
+                    mdl =
+                        { model
+                        | files = model.files ++ newAudioFiles |> ensureUnique
+                        }
+                in
+                    (mdl, persist mdl)
 
 
 -- VIEW
@@ -197,7 +261,7 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    Element.layout [jetMono, Element.height Element.fill] <| view_ model
+    Element.layout [Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill] <| view_ model
 
 view_ : Model -> Element.Element Msg
 view_ model =
@@ -205,8 +269,21 @@ view_ model =
         dropArea =
             Element.el
                 <| [Element.width Element.fill
-                , Element.height Element.fill 
+                , Element.height Element.fill
+                , Element.clipY, Element.scrollbarY
                 ] ++ dropAreaStyles model ++  dropHandler
+    in
+        dropArea 
+        <| Element.column
+            [Element.clipY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill]
+            [playback model
+            , browser model]
+
+browser model =
+    let
+        v = Element.row
+            [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
+            [playlists, filesList]
 
         playlists =
                 Element.column
@@ -214,14 +291,10 @@ view_ model =
                     (List.map (viewPlaylist model) model.playlists)
         filesList =
             Element.column
-                ([Element.width Element.fill, Element.height Element.fill])
+                ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
                 (List.map (viewFileRef model) model.files)
     in
-        dropArea 
-        <| Element.column
-            [Element.width Element.fill, Element.height Element.fill]
-            [playback model, Element.row [Element.height Element.fill, Element.width Element.fill] [playlists, filesList]]
-
+        v
 playerGrey = Element.rgb 0.95 0.955 0.96
 offWhite = Element.rgb 0.97 0.975 0.98
 
@@ -252,7 +325,8 @@ playback model =
 player {path, name} =
     let
         fileUri =
-            "file://" ++ ((String.replace name "" path) ++ name)
+            "file://" ++ (String.split "/" path |> List.map Url.percentEncode |> String.join "/")
+            |> Debug.log "fileUri"
         audioSrc = Html.Attributes.src fileUri
         attribs =
             [ Html.Attributes.autoplay True
@@ -296,7 +370,7 @@ viewFileRef model fileRef =
                 Element.none
         content =
             [ playingMarker
-            , Element.text fileRef.name
+            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text fileRef.name]
             -- , Element.el [] (Element.text fileRef.path)
             ]
     in
@@ -338,6 +412,7 @@ jetMono =
         , Element.Font.monospace
         ]
 
+dropHandler : List (Element.Attribute Msg)
 dropHandler =
     dropZoneEventHandlers uriDecorder
     |> List.map (Element.htmlAttribute >> Element.mapAttribute DropZoneMsg)
@@ -347,6 +422,7 @@ dropAreaStyles {dropZone} =
         then [Element.Background.color (Element.rgb 0.8 8 1)]
     else
         []
+
 
 
 

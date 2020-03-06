@@ -4,6 +4,7 @@ const path = require('path')
 require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.json/, argv: []});
 const fs = require('fs')
 const LIBRARY_FILE = './library.json'
+const mime = require('mime-types')
 
 const http = require('http');
 
@@ -13,8 +14,13 @@ const requestListener = function (req, res) {
   switch (req.url) {
       case '/persist':
         persist(req, res)
+        break;
       case '/restore':
         restore(req, res)
+        break;
+      case '/import':
+        import_(req, res)
+        break;
   }
 }
 const restore = (req, res) => {
@@ -29,15 +35,48 @@ const restore = (req, res) => {
     res.end()
 }
 
+// read files inside directories and return file ref
+const import_ = (req, res) => {
+    console.log('importing')
+    let body = [];
+    req.on('data', (chunk) => {
+      body.push(chunk);
+    }).on('end', () => {
+      body = Buffer.concat(body).toString();
+      console.log(body)
+      directories = JSON.parse(body)
+      const files = Array.prototype.concat(...directories.map(scan))
+      // at this point, `body` has the entire request body stored in it as a string
+      res.writeHead(200, {'Content-Type': 'application/json'});
+      res.write(JSON.stringify(files))
+      res.end()
+      console.log('imported')
+    });
+}
+const scan = directory => {
+    return Array.prototype.concat(...fs.readdirSync(directory).map(fileName => {
+        const fullPath = path.join(directory, fileName)
+        const mimeType = mime.lookup(fullPath)
+        const isDir = fs.lstatSync(fullPath).isDirectory()
+        if ((typeof mimeType == "string") && mimeType.indexOf( "audio") > -1) {
+            return [{path: fullPath, name : fileName}]
+        } else if (isDir) {
+            return scan(fullPath)
+        } else {
+            return []
+        }
+    } ))
+}
+
 const persist = (req, res) => {
     console.log('persisting')
     let body = [];
     req.on('data', (chunk) => {
       body.push(chunk);
     }).on('end', () => {
-      body = Buffer.concat(body).toString();
+      body = JSON.parse(Buffer.concat(body).toString());
       // at this point, `body` has the entire request body stored in it as a string
-      fs.writeFileSync(LIBRARY_FILE, body)
+      fs.writeFileSync(LIBRARY_FILE, JSON.stringify(body, null, 4))
       res.writeHead(200, {'Content-Type': 'application/json'});
       res.end()
       console.log('persisted')
@@ -55,16 +94,19 @@ function createWindow () {
     frame: false,
 
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: true
     }
   })
 
   // and load the index.html of the app.
   mainWindow.loadFile('index.html')
+  console.log(mainWindow)
 
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
 }
+
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

@@ -10,7 +10,7 @@ npm i && npm start
 - [x] In order to listen to music I want to have a player with play / pause button
 - [x] In order to play some music I want to drop it from my file browser into the library.
 - [x] In order to get an overview I want to list my music
-- [ ] In order to easily add a lot of music I want to drop entire directories in my library
+- [x] In order to easily add a lot of music I want to drop entire directories in my library
 - [ ] In order to skip tracks I want next/prev buttons
 - [ ] In order to prep for sets I want to create playlists
 - [ ] In order to get a better overview of my music I want to have a table that supports sorting

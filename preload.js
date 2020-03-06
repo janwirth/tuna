@@ -9,4 +9,11 @@ window.addEventListener('DOMContentLoaded', () => {
   for (const type of ['chrome', 'node', 'electron']) {
     replaceText(`${type}-version`, process.versions[type])
   }
+  console.log('setting data transfer item')
+  window.DataTransferItem.prototype.__defineGetter__("entry", function() {
+      const entry = this.webkitGetAsEntry()
+      console.log(entry)
+      return entry;
+  });
 })
+
