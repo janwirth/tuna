@@ -111,10 +111,13 @@ main =
 init : (Model, Cmd Msg)
 init =
   (initModel, restore)
+
 initModel : Model
 initModel =
     {dropZone = DropZone.init
     , files = []
+    , bandcampCookie = Nothing
+    , playing = False
     , playback = Nothing
     , playlists = ["House" , "Jazz"]
     , activePlaylist = Just "Jazz"
@@ -126,9 +129,12 @@ ensureUnique = List.Extra.uniqueBy .path
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    BandcampCookieRetrieved cookie -> ({model | bandcampCookie = Just cookie}, Cmd.none)
+    Paused ->
+        ({model | playing = False}, Cmd.none)
     Play fileRef ->
         let
-            mdl = {model | playback = Just fileRef}
+            mdl = {model | playback = Just fileRef, playing = True}
         in
             (mdl, persist mdl)
     DropZoneMsg (DropZone.Drop files) ->
@@ -181,22 +187,23 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
+        bc = if False
+            then [Element.inFront bandcamp]
+            else []
         layout =
             Element.layout
-                [Element.inFront bandcamp, Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill]
+                (bc ++ [Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill])
     in
         layout <| view_ model
 
 bandcamp =
     let
-        attribs = [
-            Html.Attributes.src "https://bandcamp.com/login"
-            , Html.Attributes.style "height" "100vh"
-            , Html.Attributes.style "background" "white"
-            , Html.Attributes.id "bandcamp"
-            ]
+        listener = Html.Events.on "cookieretrieve" decodeCookie
+        decodeCookie =
+            Decode.field "detail" Decode.string
+            |> Decode.map (BandcampCookie >> BandcampCookieRetrieved)
     in
-        Element.html (Html.node "iframe" attribs [])
+        Element.html (Html.node "bandcamp-auth" [listener] [])
 
 view_ : Model -> Element.Element Msg
 view_ model =
@@ -252,26 +259,28 @@ playback model =
                      [ playingMarquee f.name
                      , Element.el
                         [Element.width (Element.fillPortion 3 |> Element.minimum 150)]
-                        (player f)
+                        (player model f)
                      ]
                 Nothing ->
                     [playingMarquee "not playing"]
 
-player {path, name} =
+player : Model -> FileRef -> Element.Element Msg.Msg
+player model {path, name} =
     let
         fileUri =
             "file://" ++ (String.split "/" path |> List.map Url.percentEncode |> String.join "/")
             |> Debug.log "fileUri"
-        audioSrc = Html.Attributes.src fileUri
+        audioSrc = Html.Attributes.attribute "src"  fileUri
         attribs =
             [ Html.Attributes.autoplay False
             , audioSrc
             , Html.Attributes.type_ "audio/wav"
             , Html.Attributes.controls True
             , Html.Attributes.style "width" "auto"
+            , Html.Attributes.attribute "playing" "true"
             ]
         a = Html.node
-            "audio"
+            "audio-player"
             attribs
             []
             |> Element.html

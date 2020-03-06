@@ -13,3 +13,5 @@ type Msg
   | Play FileRef
   | Saved
   | Restored (Result Http.Error Model.Model)
+  | Paused
+  | BandcampCookieRetrieved BandcampCookie

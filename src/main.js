@@ -2,10 +2,8 @@
 const {app, BrowserWindow} = require('electron')
 const path = require('path')
 require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.json/, argv: []});
-const fs = require('fs')
-const LIBRARY_FILE = './library.json'
-const mime = require('mime-types')
 const { session } = require('electron')
+const { register } = require('./custom-elements')
 
 const os = require('os');
 

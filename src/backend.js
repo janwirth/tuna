@@ -1,5 +1,10 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const mime = require('mime-types')
+const LIBRARY_FILE = './library.json'
 
+// router
 const requestListener = function (req, res) {
     const request = req
   console.log('[REQUEST]', req.url)
@@ -18,6 +23,8 @@ const requestListener = function (req, res) {
         break;
   }
 }
+
+// methods
 const restore = (req, res) => {
     try {
         const data = fs.readFileSync(LIBRARY_FILE).toString()
@@ -43,6 +50,8 @@ const import_ = (req, res) => {
       res.end()
     });
 }
+
+// recursively scan a directory for audio files
 const scan = directory => {
     return Array.prototype.concat(...fs.readdirSync(directory).map(fileName => {
         const fullPath = path.join(directory, fileName)
