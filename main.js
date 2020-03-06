@@ -5,31 +5,37 @@ require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.j
 const fs = require('fs')
 const LIBRARY_FILE = './library.json'
 const mime = require('mime-types')
-
+const { session } = require('electron')
 const http = require('http');
+const serve = require('electron-serve');
+
+app.commandLine.appendSwitch('disable-site-isolation-trials')
+
+const loadURL = serve({directory: '.'});
 
 const requestListener = function (req, res) {
     const request = req
-  console.log(req.url)
+  console.log('[REQUEST]', req.url)
   switch (req.url) {
       case '/persist':
         persist(req, res)
+        console.log('[REQUEST] done')
         break;
       case '/restore':
         restore(req, res)
+        console.log('[REQUEST] done')
         break;
       case '/import':
         import_(req, res)
+        console.log('[REQUEST] done')
         break;
   }
 }
 const restore = (req, res) => {
-    console.log('restoring')
     try {
         const data = fs.readFileSync(LIBRARY_FILE).toString()
         res.writeHead(200, {'Content-Type': 'application/json'});
         res.write(data)
-        console.log('restored')
     } catch (e) {
     }
     res.end()
@@ -37,20 +43,17 @@ const restore = (req, res) => {
 
 // read files inside directories and return file ref
 const import_ = (req, res) => {
-    console.log('importing')
     let body = [];
     req.on('data', (chunk) => {
       body.push(chunk);
     }).on('end', () => {
       body = Buffer.concat(body).toString();
-      console.log(body)
       directories = JSON.parse(body)
       const files = Array.prototype.concat(...directories.map(scan))
       // at this point, `body` has the entire request body stored in it as a string
       res.writeHead(200, {'Content-Type': 'application/json'});
       res.write(JSON.stringify(files))
       res.end()
-      console.log('imported')
     });
 }
 const scan = directory => {
@@ -69,7 +72,6 @@ const scan = directory => {
 }
 
 const persist = (req, res) => {
-    console.log('persisting')
     let body = [];
     req.on('data', (chunk) => {
       body.push(chunk);
@@ -79,14 +81,16 @@ const persist = (req, res) => {
       fs.writeFileSync(LIBRARY_FILE, JSON.stringify(body, null, 4))
       res.writeHead(200, {'Content-Type': 'application/json'});
       res.end()
-      console.log('persisted')
     });
 }
 
 const server = http.createServer(requestListener);
 server.listen(8080);
 
-function createWindow () {
+
+
+async function createWindow () {
+  // session.defaultSession.webRequest.onHeadersReceived(x => console.log(x))
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -95,13 +99,18 @@ function createWindow () {
 
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true
+      nodeIntegration: true,
+      webSecurity: false
     }
   })
+  allowFrames(mainWindow.webContents.session)
 
+  await loadURL(mainWindow);
+
+  // The above is equivalent to this:
+  await mainWindow.loadURL('app://tuna');
   // and load the index.html of the app.
-  mainWindow.loadFile('index.html')
-  console.log(mainWindow)
+  // mainWindow.loadFile('index.html')
 
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
@@ -128,3 +137,31 @@ app.on('activate', function () {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+// if you checked "fancy-settings" in extensionizr.com, uncomment this lines
+
+// var settings = new Store("settings", {
+//     "sample_setting": "This is how you use Store.js to remember values"
+// });
+
+
+//example of using a message handler from the inject scripts
+const allowFrames = session => {
+    console.log(session.webRequest)
+    modifyHeaders()
+    function modifyHeaders () {
+        const filter = {urls: ['https://bandcamp.com/login']}
+        console.log("modifyHeaders")
+        // https://usamaejaz.com/bypassing-security-iframe-webextension/
+        session.webRequest.onHeadersReceived(filter, (info, callback) => {
+            const responseHeaders = info.responseHeaders
+            responseHeaders['Content-Security-Policy'] ="frame-ancestors self app://tuna"
+            console.log(responseHeaders)
+            callback({responseHeaders})
+        }, {
+            urls: [ "<all_urls>" ], // match all pages
+            types: [ "sub_frame" ] // for framing only
+        }, ["blocking", "responseHeaders"]);
+
+    }
+}

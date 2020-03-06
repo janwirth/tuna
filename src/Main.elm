@@ -180,7 +180,23 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    Element.layout [Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill] <| view_ model
+    let
+        layout =
+            Element.layout
+                [Element.inFront bandcamp, Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill]
+    in
+        layout <| view_ model
+
+bandcamp =
+    let
+        attribs = [
+            Html.Attributes.src "https://bandcamp.com/login"
+            , Html.Attributes.style "height" "100vh"
+            , Html.Attributes.style "background" "white"
+            , Html.Attributes.id "bandcamp"
+            ]
+    in
+        Element.html (Html.node "iframe" attribs [])
 
 view_ : Model -> Element.Element Msg
 view_ model =
@@ -341,7 +357,3 @@ dropAreaStyles {dropZone} =
         then [Element.Background.color (Element.rgb 0.8 8 1)]
     else
         []
-
-
-
-
