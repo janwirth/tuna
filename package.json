@@ -2,7 +2,7 @@
   "name": "tuna",
   "version": "0.0.1",
   "description": "A cross-platform iTunes alternative",
-  "main": "main.js",
+  "main": "src/main.js",
   "author": "Jan Wirth <contact@jan-wirth.de>",
   "scripts": {
     "start": "concurrently --raw npm:elm npm:electron",
