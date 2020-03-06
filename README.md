@@ -1,6 +1,11 @@
 # Music Library
 A tool for people who like their own music files.
 
+## Running
+```sh
+npm i && npm start
+```
+
 ## User Stories
 - [x] In order to listen to music I want to have a player with play / pause button
 - [x] In order to play some music I want to drop it from my file browser into the library.
@@ -20,3 +25,4 @@ A tool for people who like their own music files.
     - ordered playlists or
     - 'working well together' tool
     - or both?
+- [ ] In order to get comfortable with the app quickly I want simple text-based onboarding when absolutely necessary
