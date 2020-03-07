@@ -30,6 +30,9 @@ const unzipped_path = purchase_id =>
             , `${purchase_id}`
             )
 
+const absolute_target = purchase_id =>
+        path.join(__dirname, "..", unzipped_path(purchase_id))
+
 const already_downloaded = purchase_id =>
     fs.existsSync(complete_file_path(purchase_id))
 
@@ -91,4 +94,4 @@ const unzip = async purchase_id => {
     });
 }
 
-module.exports = {with_progress, already_downloaded, unzip}
+module.exports = {with_progress, already_downloaded, unzip, absolute_target}

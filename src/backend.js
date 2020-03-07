@@ -3,8 +3,12 @@ const fs = require('fs')
 
 // methods
 const restore = () => {
-    const data = fs.readFileSync(LIBRARY_FILE).toString()
-    return JSON.parse(data)
+    if (fs.existsSync(LIBRARY_FILE)) {
+        const data = fs.readFileSync(LIBRARY_FILE).toString()
+        return JSON.parse(data)
+    } else {
+        return null
+    }
 }
 
 const persist = model => {

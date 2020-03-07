@@ -39,11 +39,18 @@ type alias Flags = Decode.Value
 
 port persist_ : Encode.Value -> Cmd msg
 port import_ : List String -> Cmd msg
+port bandcamp_import : Int -> Cmd msg
 
 persist : Model -> Cmd msg
 persist =
     encodeModel >> persist_
 
+hooks : Msg.Msg -> (Model.Model, Cmd Msg.Msg) -> (Model.Model, Cmd Msg.Msg)
+hooks msg (model, cmd) =
+    case msg of
+        Msg.BandcampMsg (Bandcamp.DownloadCompleted purchase_id) ->
+            (model, Cmd.batch [cmd, bandcamp_import purchase_id, persist model])
+        _ -> (model, cmd)
 
 uriDecorder : Decode.Decoder DropPayload
 uriDecorder =
@@ -78,13 +85,14 @@ main : Platform.Program Flags Model Msg
 main =
   Browser.application
       { init = init
-      , update = update
+      , update = updateAndHooks
       , view = view
       , subscriptions = subscriptions
       , onUrlChange = always Paused
       , onUrlRequest = always Paused
       }
 
+updateAndHooks msg = update msg >> hooks msg
 -- MODEL
 
 
@@ -233,7 +241,6 @@ player model {path, name} =
     let
         fileUri =
             "file://" ++ (String.split "/" path |> List.map Url.percentEncode |> String.join "/")
-            |> Debug.log "fileUri"
         audioSrc = Html.Attributes.attribute "src"  fileUri
         attribs =
             [ Html.Attributes.autoplay False

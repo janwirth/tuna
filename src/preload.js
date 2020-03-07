@@ -37,4 +37,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // connect bandcamp
     app.ports.bandcamp_init_request.subscribe(Bandcamp.connect(app))
     app.ports.bandcamp_download_request.subscribe(Bandcamp.download(app))
+    app.ports.bandcamp_import.subscribe(Bandcamp.import_(app))
 })

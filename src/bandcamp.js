@@ -4,6 +4,7 @@ const Entities = require('html-entities').AllHtmlEntities;
 const entities = new Entities();
 const fs = require("fs")
 const Downloader = require("./downloader")
+const FileSystem = require("./fileSystem.js")
 
 // extract the data encoded in the bandcamp data blob
 const fetchAndSlice = async (cookie, url) => {
@@ -58,6 +59,10 @@ const get_asset_url = async (cookie, encode_url) => {
       return url
     }
 
+const import_ = app => purchase_id => {
+        console.log('importing')
+        FileSystem.import_(app, [Downloader.absolute_target(purchase_id)])
+    }
 
 
-module.exports = {connect, download}
+module.exports = {connect, download, import_}

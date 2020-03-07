@@ -456,4 +456,3 @@ update msg model =
                         (mdl, downloadCmd)
             in
                 return
-
