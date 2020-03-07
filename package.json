@@ -5,8 +5,7 @@
   "main": "src/main.js",
   "author": "Jan Wirth <contact@jan-wirth.de>",
   "scripts": {
-    "start": "concurrently --raw npm:elm npm:electron",
-    "elm": "nodemon --exec \"elm make --debug src/Main.elm\" -w src -e elm",
+    "start": "nodemon --exec \"elm make --debug src/Main.elm && npm run electron\" -w src -e elm",
     "electron": "nodemon --exec \"electron .\" -w . -e js",
     "build": "elm make src/Main.elm --optimize && electron-builder"
   },
