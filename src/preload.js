@@ -1,5 +1,7 @@
-
+const {persist, restore, bandcamp_init} = require("./backend")
 const {register} = require("./custom-elements")
+const {Elm} = require("../elm-stuff/elm.js")
+
 register()
 
 // All of the Node.js APIs are available in the preload process.
@@ -23,3 +25,10 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 })
 
+document.addEventListener('DOMContentLoaded', () => {
+    const flags = JSON.parse(restore())
+    console.log(flags)
+    const app = Elm.Main.init({flags})
+    app.ports.persist_.subscribe(persist)
+    app.ports.bandcamp_init_request.subscribe(bandcamp_init(app))
+})

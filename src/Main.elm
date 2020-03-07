@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 -- Press buttons to increment and decrement a counter.
 --
@@ -8,6 +8,9 @@ module Main exposing (..)
 
 
 import Browser
+import Browser.Navigation
+import Url
+import Dict
 import Bandcamp
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
@@ -27,19 +30,13 @@ import Url
 import Model exposing (..)
 import Msg exposing (..)
 
-persist_ = always Cmd.none
+type alias Flags = Decode.Value
 
-persist : Model -> Cmd Msg
-persist model =
-    let
-        encoded = encodeModel model
-        params =
-            { url = "http://localhost:8080/persist"
-            , body = Http.jsonBody encoded
-            , expect = Http.expectWhatever (always Saved)
-            }
-    in
-    Http.post params
+port persist_ : Encode.Value -> Cmd msg
+
+persist : Model -> Cmd msg
+persist =
+    encodeModel >> persist_
 
 readDirectories : List String -> Cmd Msg
 readDirectories directories =
@@ -79,50 +76,47 @@ uriDecorder =
     in
         filesDecoder
 
-restore : Cmd Msg
-restore =
-    let
-        params =
-            {url = "http://localhost:8080/restore"
-            , expect = Http.expectJson Restored decodeModel
-            }
-    in
-    Http.get params
-
-
 
 -- MAIN
 
 
-main : Platform.Program () Model Msg
+main : Platform.Program Flags Model Msg
 main =
-  Browser.element
-      { init = always init
+  Browser.application
+      { init = init
       , update = update
       , view = view
-      , subscriptions = always Sub.none
+      , subscriptions = subscriptions
+      , onUrlChange = always Paused
+      , onUrlRequest = always Paused
       }
 
-
-
+subscriptions : Model.Model -> Sub Msg.Msg
+subscriptions model =
+    let
+        capture val =
+            val
+            |> Decode.decodeValue Bandcamp.extractModelFromBlob
+            |> BandcampDataRetrieved
+    in
+    Bandcamp.bandcamp_library_retrieved
+        capture
 -- MODEL
 
 
 
-init : (Model, Cmd Msg)
-init =
-  (initModel, restore)
-
-initModel : Model
-initModel =
-    {dropZone = DropZone.init
-    , files = []
-    , bandcampCookie = Nothing
-    , playing = False
-    , playback = Nothing
-    , playlists = ["House" , "Jazz"]
-    , activePlaylist = Just "Jazz"
-    }
+init : Flags -> Url.Url -> Browser.Navigation.Key -> (Model, Cmd Msg)
+init flags url key =
+    let
+        decoded =
+            Decode.decodeValue decodeModel flags
+            |> Result.toMaybe
+            |> Maybe.withDefault Model.init
+        cmd = case decoded.bandcampCookie of
+            Just cookie -> Bandcamp.init cookie
+            Nothing -> Cmd.none
+    in
+        (decoded, cmd)
 
 
 ensureUnique = List.Extra.uniqueBy .path
@@ -135,7 +129,7 @@ update msg model =
             mdl = {model | bandcampCookie = Just cookie}
             cmds = Cmd.batch [
                     persist mdl
-                  , Bandcamp.getInitData cookie
+                  , Bandcamp.init cookie
                     |> Cmd.map BandcampDataRetrieved
                 ]
         in
@@ -181,7 +175,7 @@ update msg model =
                 let
                     cmd = case restored.bandcampCookie of
                             Nothing -> Cmd.none
-                            Just c -> Bandcamp.getInitData c
+                            Just c -> Bandcamp.init c
                                 |> Cmd.map BandcampDataRetrieved
                 in
 
@@ -197,21 +191,27 @@ update msg model =
                         }
                 in
                     (mdl, persist mdl)
-    BandcampDataRetrieved _ -> (model, Cmd.none)
+    BandcampDataRetrieved res ->
+        case Debug.log "res" res of
+            Ok m ->
+                ({model | bandcampData = m}
+                , Cmd.none
+                )
+            Err e -> (model, Cmd.none)
 
 
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
     let
         layout =
             Element.layout
                 ([Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill])
+        body = model |> view_ |> layout |> List.singleton
     in
-        layout <| view_ model
-
+        {title = "Tuna", body = body}
 view_ : Model -> Element.Element Msg
 view_ model =
     let

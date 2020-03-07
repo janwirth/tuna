@@ -19,4 +19,4 @@ type Msg
   | Paused
 
   | BandcampCookieRetrieved Bandcamp.Cookie
-  | BandcampDataRetrieved (RemoteData.WebData Decode.Value)
+  | BandcampDataRetrieved (Result Decode.Error Bandcamp.Model)

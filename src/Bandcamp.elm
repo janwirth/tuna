@@ -1,23 +1,141 @@
-module Bandcamp exposing (..)
+port module Bandcamp exposing (..)
 
-import RemoteData.Http exposing (defaultConfig)
-import Http
 import Element
 import Html.Events
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Html
 import RemoteData
+import Time
+import Dict
+
+init (Cookie cookie) = bandcamp_init_request cookie
+
+port bandcamp_init_request : String -> Cmd msg
+port bandcamp_library_retrieved : (Decode.Value -> msg) -> Sub msg
+
+
+extractModelFromBlob : Decode.Decoder Model
+extractModelFromBlob =
+    let
+        extractPurchases : Decode.Decoder (Dict.Dict String Purchase)
+        extractPurchases =
+            Decode.at ["item_cache", "collection"] (Decode.dict extractPurchase)
+
+        extractPurchase : Decode.Decoder Purchase
+        extractPurchase =
+            Decode.map3 Purchase
+                (Decode.field "item_title" Decode.string)
+                (Decode.field "band_name" Decode.string)
+                (Decode.field "item_art_id" Decode.int)
+
+        extractDownloadUrls : Decode.Decoder (Dict.Dict String String)
+        extractDownloadUrls =
+            Decode.at
+                ["collection_data", "redownload_urls"]
+                (Decode.dict Decode.string)
+    in
+        Decode.map2
+            Model
+            extractDownloadUrls
+            extractPurchases
+
+initModel : Model
+initModel =
+    Model
+        Dict.empty
+        Dict.empty
+
+type alias Date = Time.Posix
+
+encodeDate = Time.posixToMillis >> Encode.int
+decodeDate = Decode.int |> Decode.map Time.millisToPosix
+
+type alias Track = {title : String, number : Int}
 
 -- [decgen-start]
+
+type alias Model =
+    { download_urls : Dict.Dict String String
+    , purchases : Dict.Dict String Purchase
+    }
+type alias Purchase =
+    { title: String
+    , artist : String
+    , artwork: Int
+    }
 type Cookie = Cookie String
 
 -- [decgen-generated-start] -- DO NOT MODIFY or remove this line
 decodeCookie =
    Decode.map Cookie Decode.string
 
+decodeDictStringPurchase =
+   let
+      decodeDictStringPurchaseTuple =
+         Decode.map2
+            (\a1 a2 -> (a1, a2))
+               ( Decode.field "A1" Decode.string )
+               ( Decode.field "A2" decodePurchase )
+   in
+      Decode.map Dict.fromList (Decode.list decodeDictStringPurchaseTuple)
+
+decodeDictStringString =
+   let
+      decodeDictStringStringTuple =
+         Decode.map2
+            (\a1 a2 -> (a1, a2))
+               ( Decode.field "A1" Decode.string )
+               ( Decode.field "A2" Decode.string )
+   in
+      Decode.map Dict.fromList (Decode.list decodeDictStringStringTuple)
+
+decodeModel =
+   Decode.map2
+      Model
+         ( Decode.field "download_urls" decodeDictStringString )
+         ( Decode.field "purchases" decodeDictStringPurchase )
+
+decodePurchase =
+   Decode.map3
+      Purchase
+         ( Decode.field "title" Decode.string )
+         ( Decode.field "artist" Decode.string )
+         ( Decode.field "artwork" Decode.int )
+
 encodeCookie (Cookie a1) =
-   Encode.string a1 
+   Encode.string a1
+
+encodeDictStringPurchase a =
+   let
+      encodeDictStringPurchaseTuple (a1,a2) =
+         Encode.object
+            [ ("A1", Encode.string a1)
+            , ("A2", encodePurchase a2) ]
+   in
+      (Encode.list encodeDictStringPurchaseTuple) (Dict.toList a)
+
+encodeDictStringString a =
+   let
+      encodeDictStringStringTuple (a1,a2) =
+         Encode.object
+            [ ("A1", Encode.string a1)
+            , ("A2", Encode.string a2) ]
+   in
+      (Encode.list encodeDictStringStringTuple) (Dict.toList a)
+
+encodeModel a =
+   Encode.object
+      [ ("download_urls", encodeDictStringString a.download_urls)
+      , ("purchases", encodeDictStringPurchase a.purchases)
+      ]
+
+encodePurchase a =
+   Encode.object
+      [ ("title", Encode.string a.title)
+      , ("artist", Encode.string a.artist)
+      , ("artwork", Encode.int a.artwork)
+      ] 
 -- [decgen-end]
 
 
@@ -37,20 +155,6 @@ authElement =
     in
         Element.html (Html.node "bandcamp-auth" [listener] [])
 
-cookieToHeader : Cookie -> Http.Header
-cookieToHeader (Cookie c) =
-    Http.header "Cookie" c
-
-getInitData : Cookie -> Cmd (RemoteData.WebData Decode.Value)
-getInitData (Cookie cookie) =
-    let
-        encoded = Encode.string cookie
-    in
-        RemoteData.Http.post
-            "http://localhost:8080/bandcamp/init"
-            identity
-            Decode.value
-            encoded
 
 extractPageData : Decode.Decoder Decode.Value
 extractPageData =

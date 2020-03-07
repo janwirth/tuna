@@ -4,6 +4,20 @@ import DropZone
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Bandcamp
+import Time
+import Dict
+
+init : Model
+init =
+    {dropZone = DropZone.init
+    , files = []
+    , bandcampCookie = Nothing
+    , playing = False
+    , playback = Nothing
+    , playlists = ["House" , "Jazz"]
+    , activePlaylist = Just "Jazz"
+    , bandcampData = Bandcamp.initModel
+    }
 
 type alias DropPayload = List TransferItem
 
@@ -23,7 +37,6 @@ type TransferItem =
 -- never persist bandcamp cookie
 -- encodeBandcampCookie_ _ = Encode.null
 -- decodeBandcampCookie_ = Decode.succeed Nothing
-
 -- [decgen-start]
 
 type alias FileRef = {name : String, path: String}
@@ -36,6 +49,7 @@ type alias Model =
     , playing : Bool
     , playlists : List String
     , activePlaylist : Maybe String
+    , bandcampData : Bandcamp.Model
     }
 
 -- [decgen-generated-start] -- DO NOT MODIFY or remove this line
@@ -46,7 +60,7 @@ decodeFileRef =
          ( Decode.field "path" Decode.string )
 
 decodeModel =
-   Decode.map7
+   Decode.map8
       Model
          ( Decode.field "dropZone" decodeDropZoneModel )
          ( Decode.field "files" (Decode.list decodeFileRef) )
@@ -55,6 +69,7 @@ decodeModel =
          ( Decode.field "playing" Decode.bool )
          ( Decode.field "playlists" (Decode.list Decode.string) )
          ( Decode.field "activePlaylist" (Decode.maybe Decode.string) )
+         ( Decode.field "bandcampData" Bandcamp.decodeModel )
 
 encodeFileRef a =
    Encode.object
@@ -92,8 +107,6 @@ encodeModel a =
       , ("playing", Encode.bool a.playing)
       , ("playlists", (Encode.list Encode.string) a.playlists)
       , ("activePlaylist", encodeMaybeString a.activePlaylist)
+      , ("bandcampData", Bandcamp.encodeModel a.bandcampData)
       ] 
 -- [decgen-end]
-
-
-

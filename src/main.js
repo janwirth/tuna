@@ -33,9 +33,6 @@ const currentPlatform = platformsNames[os.platform()];
 const serve = require('electron-serve');
 const loadURL = serve({directory: '.'});
 
-// start backend server
-require('./backend')
-
 // pierce 3rd-party integrations through security layers
 // @@TODO: keep security in mind
 const {allowAppAsFrameAncestor, setup} = require('./security.js')
