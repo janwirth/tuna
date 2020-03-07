@@ -1,5 +1,4 @@
 function register () {
-    console.warn('registering')
 
     class BandcampAuth extends HTMLElement {
         constructor() {
@@ -11,14 +10,11 @@ function register () {
             iframe.src = "https://bandcamp.com/login"
             // event callback
             const extractCookie = ev => {
-                    console.log(iframe)
                     const cookie = iframe.contentDocument.cookie
-                    console.log(cookie)
                     const retrieved = new CustomEvent('cookieretrieve', {detail: {cookie}})
                     this.dispatchEvent(retrieved)
                 }
             // test
-            this.addEventListener('cookieretrieve', (ev) => console.error(ev.detail))
             iframe.addEventListener('load', extractCookie, false)
             this.appendChild(iframe)
             // silence bandcamp bc it is noisy
@@ -50,15 +46,12 @@ function register () {
 
   // Respond to attribute changes.
   attributeChangedCallback(attr, oldValue, newValue) {
-        console.log(attr, newValue)
-        console.log(this.audio)
         if (attr == 'name') {
           this.textContent = `Hello, ${newValue}`;
         }
         if (attr == 'src' && this.audio) {
-            console.log('new tune', this.attributes.playing == "true")
             this.audio.src = newValue
-            if (this.attributes.playing.value == "true") {
+            if (this.attributes.playing && this.attributes.playing.value == "true") {
                 this.audio.play()
             }
         }

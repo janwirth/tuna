@@ -3,6 +3,7 @@ import File
 import DropZone
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Bandcamp
 
 type alias DropPayload = List TransferItem
 
@@ -19,10 +20,9 @@ type TransferItem =
     DroppedFile FileRef
     | DroppedDirectory String
 
-type BandcampCookie = BandcampCookie String
-type alias BandcampCookie_ = Maybe BandcampCookie
-encodeBandcampCookie_ _ = Encode.null
-decodeBandcampCookie_ = Decode.succeed Nothing
+-- never persist bandcamp cookie
+-- encodeBandcampCookie_ _ = Encode.null
+-- decodeBandcampCookie_ = Decode.succeed Nothing
 
 -- [decgen-start]
 
@@ -31,7 +31,7 @@ type alias FileRef = {name : String, path: String}
 type alias Model =
     { dropZone : DropZoneModel
     , files : List FileRef
-    , bandcampCookie : BandcampCookie_
+    , bandcampCookie : Maybe Bandcamp.Cookie
     , playback : Maybe FileRef
     , playing : Bool
     , playlists : List String
@@ -50,7 +50,7 @@ decodeModel =
       Model
          ( Decode.field "dropZone" decodeDropZoneModel )
          ( Decode.field "files" (Decode.list decodeFileRef) )
-         ( Decode.field "bandcampCookie" decodeBandcampCookie_ )
+         ( Decode.field "bandcampCookie" (Decode.maybe Bandcamp.decodeCookie) )
          ( Decode.field "playback" (Decode.maybe decodeFileRef) )
          ( Decode.field "playing" Decode.bool )
          ( Decode.field "playlists" (Decode.list Decode.string) )
@@ -61,6 +61,13 @@ encodeFileRef a =
       [ ("name", Encode.string a.name)
       , ("path", Encode.string a.path)
       ]
+
+encodeMaybeBandcamp_Cookie a =
+   case a of
+      Just b->
+         Bandcamp.encodeCookie b
+      Nothing->
+         Encode.null
 
 encodeMaybeFileRef a =
    case a of
@@ -80,11 +87,13 @@ encodeModel a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
       , ("files", (Encode.list encodeFileRef) a.files)
-      , ("bandcampCookie", encodeBandcampCookie_ a.bandcampCookie)
+      , ("bandcampCookie", encodeMaybeBandcamp_Cookie a.bandcampCookie)
       , ("playback", encodeMaybeFileRef a.playback)
       , ("playing", Encode.bool a.playing)
       , ("playlists", (Encode.list Encode.string) a.playlists)
       , ("activePlaylist", encodeMaybeString a.activePlaylist)
       ] 
 -- [decgen-end]
+
+
 

@@ -3,7 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const mime = require('mime-types')
 const LIBRARY_FILE = './library.json'
-
+const fetch = require('isomorphic-fetch')
+const Entities = require('html-entities').AllHtmlEntities;
+ 
+const entities = new Entities();
 // router
 const requestListener = function (req, res) {
     const request = req
@@ -21,7 +24,50 @@ const requestListener = function (req, res) {
         import_(req, res)
         console.log('[REQUEST] done')
         break;
+      case '/bandcamp/init':
+        bandcamp_init(req, res)
+        break;
   }
+}
+const fetchAndSlice = async (cookie, url) => {
+
+      // INIT
+      // request bandcamp
+      const data =
+        await fetch(url,
+                { method: 'GET'
+                , headers: {Cookie: cookie}
+                }
+            )
+      const text = await data.text()
+      // extract data
+      const re = /data-blob="(\{.*})"/
+      const blobAndTail = text.split("data-blob=\"")[1]
+      const blob = blobAndTail.split("\"></div>")[0]
+      return entities.decode(blob)
+}
+
+const bandcamp_init = async (req, res) => {
+    let body = [];
+    req.on('data', (chunk) => {
+      body.push(chunk);
+    }).on('end', async () => {
+      body = Buffer.concat(body).toString();
+      const cookie = body
+      const initData = await fetchAndSlice(cookie, "https://bandcamp.com")
+      // @@ TODO FIX for some reason the part after await is called twice
+      const username = JSON.parse(initData).identities.fan.username
+      console.log(username)
+      const collectionData = await fetchAndSlice(cookie, "https://bandcamp.com/" + username)
+      console.log(collectionData)
+
+
+      res.writeHead(200, {'Content-Type': 'application/json'});
+      res.write(collectionData)
+      res.end()
+      console.log('[REQUEST] done')
+    });
+
 }
 
 // methods

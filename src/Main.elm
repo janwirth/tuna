@@ -8,6 +8,7 @@ module Main exposing (..)
 
 
 import Browser
+import Bandcamp
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (style)
@@ -129,7 +130,16 @@ ensureUnique = List.Extra.uniqueBy .path
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    BandcampCookieRetrieved cookie -> ({model | bandcampCookie = Just cookie}, Cmd.none)
+    BandcampCookieRetrieved cookie ->
+        let
+            mdl = {model | bandcampCookie = Just cookie}
+            cmds = Cmd.batch [
+                    persist mdl
+                  , Bandcamp.getInitData cookie
+                    |> Cmd.map BandcampDataRetrieved
+                ]
+        in
+        (mdl, cmds)
     Paused ->
         ({model | playing = False}, Cmd.none)
     Play fileRef ->
@@ -167,7 +177,15 @@ update msg model =
     Restored res ->
         case res of
             Err e -> (model, Cmd.none)
-            Ok restored -> (restored, Cmd.none)
+            Ok restored ->
+                let
+                    cmd = case restored.bandcampCookie of
+                            Nothing -> Cmd.none
+                            Just c -> Bandcamp.getInitData c
+                                |> Cmd.map BandcampDataRetrieved
+                in
+
+                (restored, cmd)
     FilesRead res ->
         case res of
             Err e -> (model, Cmd.none)
@@ -179,6 +197,7 @@ update msg model =
                         }
                 in
                     (mdl, persist mdl)
+    BandcampDataRetrieved _ -> (model, Cmd.none)
 
 
 -- VIEW
@@ -187,35 +206,23 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
-        bc = if False
-            then [Element.inFront bandcamp]
-            else []
         layout =
             Element.layout
-                (bc ++ [Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill])
+                ([Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill])
     in
         layout <| view_ model
-
-bandcamp =
-    let
-        listener = Html.Events.on "cookieretrieve" decodeCookie
-        decodeCookie =
-            Decode.at ["detail", "cookie"] Decode.string
-            |> Decode.map (BandcampCookie >> BandcampCookieRetrieved)
-    in
-        Element.html (Html.node "bandcamp-auth" [listener] [])
 
 view_ : Model -> Element.Element Msg
 view_ model =
     let
+        bandcamp =
+            Bandcamp.statusIndicator model.bandcampCookie
+            |> Element.map Msg.BandcampCookieRetrieved
         header =
             Element.row
                 [Element.Background.color playerGrey, Element.width Element.fill]
-                [playback model, bandcampStatus]
+                [playback model, bandcamp]
 
-        bandcampStatus = case model.bandcampCookie of
-            Just _ -> Element.text "bc OK"
-            Nothing -> Element.el [Element.inFront bandcamp, Element.alignTop, Element.alignRight, Element.moveLeft 300] Element.none
         dropArea =
             Element.el
                 <| [Element.width Element.fill

@@ -3,6 +3,9 @@ import Model exposing (..)
 import DropZone exposing (..)
 import Http
 import Model exposing (..)
+import Bandcamp
+import RemoteData
+import Json.Decode as Decode
 
 -- UPDATE
 
@@ -14,4 +17,6 @@ type Msg
   | Saved
   | Restored (Result Http.Error Model.Model)
   | Paused
-  | BandcampCookieRetrieved BandcampCookie
+
+  | BandcampCookieRetrieved Bandcamp.Cookie
+  | BandcampDataRetrieved (RemoteData.WebData Decode.Value)
