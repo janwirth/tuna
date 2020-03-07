@@ -421,11 +421,11 @@ update msg model =
                     model.library
                     |> RemoteData.toMaybe
                     |> Maybe.andThen (\{download_urls} -> Dict.get (to_download_id id) download_urls)
-                    |> Maybe.map startdownload
+                    |> Maybe.map2 startdownload model.cookie
                     |> Maybe.withDefault (model, Cmd.none)
-                startdownload download_url =
+                startdownload (Cookie cookie) download_url =
                     let
-                        downloadCmd = bandcamp_start_download (id, download_url)
+                        downloadCmd = bandcamp_download_request (cookie, id, download_url)
                         mdl =
                             { model
                             | downloads = Dict.insert id Waiting model.downloads
@@ -435,6 +435,6 @@ update msg model =
             in
                 return
 
-port bandcamp_start_download : (Int, String) -> Cmd msg
+port bandcamp_download_request : (String, Int, String) -> Cmd msg
 
 

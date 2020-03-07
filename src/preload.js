@@ -1,5 +1,6 @@
-const {persist, restore, bandcamp_init} = require("./backend")
-const {import_} = require("./fileSystem")
+const Storage = require("./backend")
+const Bandcamp = require("./bandcamp")
+const FileSystem = require("./fileSystem")
 const {register} = require("./custom-elements")
 const {Elm} = require("../elm-stuff/elm.js")
 
@@ -27,10 +28,13 @@ window.addEventListener('DOMContentLoaded', () => {
 })
 
 document.addEventListener('DOMContentLoaded', () => {
-    const flags = JSON.parse(restore())
-    console.log(flags)
+    // init and connect persistence layer
+    const flags = JSON.parse(Storage.restore())
     const app = Elm.Main.init({flags})
-    app.ports.scan_directories.subscribe(import_(app))
-    app.ports.persist_.subscribe(persist)
-    app.ports.bandcamp_init_request.subscribe(bandcamp_init(app))
+    app.ports.persist_.subscribe(Storage.persist)
+    // connect file system access
+    app.ports.scan_directories.subscribe(FileSystem.import_(app))
+    // connect bandcamp
+    app.ports.bandcamp_init_request.subscribe(Bandcamp.connect(app))
+    app.ports.bandcamp_download_request.subscribe(Bandcamp.download(app))
 })
