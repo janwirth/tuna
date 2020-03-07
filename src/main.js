@@ -52,7 +52,8 @@ async function createWindow () {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
-      webSecurity: false
+      webSecurity: false,
+      nativeWindowOpen: true // allow elm to spawn a debugger
     }
   })
 
