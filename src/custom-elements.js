@@ -12,13 +12,14 @@ function register () {
             // event callback
             const extractCookie = ev => {
                     console.log(iframe)
-                    const detail = iframe.contentDocument.cookie
-                    const retrieved = new Event('cookieretrieve', {detail})
+                    const cookie = iframe.contentDocument.cookie
+                    console.log(cookie)
+                    const retrieved = new CustomEvent('cookieretrieve', {detail: {cookie}})
                     this.dispatchEvent(retrieved)
                 }
             // test
-            this.addEventListener('cookieretrieve', (ev) => console.error(ev))
-            iframe.addEventListener('load', extractCookie, true)
+            this.addEventListener('cookieretrieve', (ev) => console.error(ev.detail))
+            iframe.addEventListener('load', extractCookie, false)
             this.appendChild(iframe)
             // silence bandcamp bc it is noisy
             iframe.contentWindow.console.log = () => undefined

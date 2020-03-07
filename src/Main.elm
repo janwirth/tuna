@@ -200,7 +200,7 @@ bandcamp =
     let
         listener = Html.Events.on "cookieretrieve" decodeCookie
         decodeCookie =
-            Decode.field "detail" Decode.string
+            Decode.at ["detail", "cookie"] Decode.string
             |> Decode.map (BandcampCookie >> BandcampCookieRetrieved)
     in
         Element.html (Html.node "bandcamp-auth" [listener] [])
@@ -208,6 +208,14 @@ bandcamp =
 view_ : Model -> Element.Element Msg
 view_ model =
     let
+        header =
+            Element.row
+                [Element.Background.color playerGrey, Element.width Element.fill]
+                [playback model, bandcampStatus]
+
+        bandcampStatus = case model.bandcampCookie of
+            Just _ -> Element.text "bc OK"
+            Nothing -> Element.el [Element.inFront bandcamp, Element.alignTop, Element.alignRight, Element.moveLeft 300] Element.none
         dropArea =
             Element.el
                 <| [Element.width Element.fill
@@ -218,7 +226,7 @@ view_ model =
         dropArea 
         <| Element.column
             [Element.clipY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill]
-            [playback model
+            [header
             , browser model]
 
 browser model =
