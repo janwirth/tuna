@@ -7,18 +7,10 @@ import Json.Decode as Decode
 
 subscriptions : Model.Model -> Sub Msg.Msg
 subscriptions model =
-    Sub.batch [bandcampSub, filesystemSub]
-
-bandcampSub : Sub Msg.Msg
-bandcampSub =
-    let
-        captureBandcampLib val =
-            val
-            |> Decode.decodeValue Bandcamp.extractModelFromBlob
-            |> Bandcamp.DataRetrieved
-            |> Msg.BandcampMsg
-    in
-            Bandcamp.bandcamp_library_retrieved captureBandcampLib
+    Sub.batch
+        [ Bandcamp.subscriptions model.bandcamp |> Sub.map Msg.BandcampMsg
+        , filesystemSub
+        ]
 
 
 

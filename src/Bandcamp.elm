@@ -13,10 +13,30 @@ import Element.Font
 import Element.Background
 import Color
 
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    let
+        captureBandcampLib val =
+            val
+            |> Decode.decodeValue extractModelFromBlob
+            |> DataRetrieved
+    in
+            Sub.batch [
+                bandcamp_library_retrieved captureBandcampLib
+              , bandcamp_download_complete DownloadCompleted
+            ]
+
+port bandcamp_download_request : (String, Int, String) -> Cmd msg
+port bandcamp_download_complete : (Int -> msg) -> Sub msg
+
+port bandcamp_init_request : String -> Cmd msg
+port bandcamp_library_retrieved : (Decode.Value -> msg) -> Sub msg
+
 type Msg =
     CookieRetrieved Cookie
   | DataRetrieved (Result Decode.Error Library)
   | DownloadButtonClicked Int
+  | DownloadCompleted Int
 
 to_download_id : Int -> String
 to_download_id id =
@@ -112,8 +132,6 @@ fetchLatestLibrary : String -> Cmd Msg
 fetchLatestLibrary cookie =
     bandcamp_init_request cookie
 
-port bandcamp_init_request : String -> Cmd msg
-port bandcamp_library_retrieved : (Decode.Value -> msg) -> Sub msg
 
 
 extractModelFromBlob : Decode.Decoder Library
@@ -415,6 +433,10 @@ update msg model =
                     , Cmd.none
                     )
                 Err e -> (model, Cmd.none)
+        DownloadCompleted purchase_id ->
+            ({model | downloads = Dict.insert purchase_id Completed model.downloads}
+            , Cmd.none
+            )
         DownloadButtonClicked id ->
             let
                 return =
@@ -434,7 +456,4 @@ update msg model =
                         (mdl, downloadCmd)
             in
                 return
-
-port bandcamp_download_request : (String, Int, String) -> Cmd msg
-
 
