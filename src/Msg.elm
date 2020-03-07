@@ -16,7 +16,6 @@ type Msg
   | Saved
   | Paused
 
-  | BandcampCookieRetrieved Bandcamp.Cookie
-  | BandcampDataRetrieved (Result Decode.Error Bandcamp.Model)
+  | BandcampMsg Bandcamp.Msg
 
   | TabClicked Model.Tab

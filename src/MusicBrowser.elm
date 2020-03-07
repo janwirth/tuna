@@ -35,7 +35,7 @@ view model =
             [{-playlists,-} filesList]
 
         bcBrowser = Bandcamp.browser
-                model.bandcampData
+                model.bandcamp
 
         filesList =
             case List.isEmpty model.files of
@@ -49,7 +49,9 @@ view model =
                         (List.map (viewFileRef model) model.files)
         content = case model.tab of
             LocalTab -> localBrowser
-            BandcampTab -> bcBrowser
+            BandcampTab ->
+                bcBrowser
+                |> Element.map Msg.BandcampMsg
     in
         Element.column
             [Element.width Element.fill, Element.height Element.fill, Element.clipY, Element.scrollbarY]

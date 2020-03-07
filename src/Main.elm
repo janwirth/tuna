@@ -96,9 +96,8 @@ init flags url key =
             Decode.decodeValue decodeModel flags
             |> Result.toMaybe
             |> Maybe.withDefault Model.init
-        cmd = case decoded.bandcampCookie of
-            Just cookie -> Bandcamp.init cookie
-            Nothing -> Cmd.none
+        cmd = Bandcamp.initCmd decoded.bandcamp
+            |> Cmd.map Msg.BandcampMsg
     in
         (decoded, cmd)
 
@@ -108,17 +107,13 @@ ensureUnique = List.Extra.uniqueBy .path
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    TabClicked newTab -> ({model | tab = newTab}, Cmd.none)
-    BandcampCookieRetrieved cookie ->
+    BandcampMsg bmsg ->
         let
-            mdl = {model | bandcampCookie = Just cookie}
-            cmds = Cmd.batch [
-                    persist mdl
-                  , Bandcamp.init cookie
-                    |> Cmd.map BandcampDataRetrieved
-                ]
+            (b, cmd) = Bandcamp.update bmsg model.bandcamp
+            mdl = {model | bandcamp = b}
         in
-        (mdl, cmds)
+            (mdl, Cmd.batch [persist mdl, Cmd.map Msg.BandcampMsg cmd])
+    TabClicked newTab -> ({model | tab = newTab}, Cmd.none)
     Paused ->
         ({model | playing = False}, Cmd.none)
     Play fileRef ->
@@ -164,13 +159,6 @@ update msg model =
                         }
                 in
                     (mdl, persist mdl)
-    BandcampDataRetrieved res ->
-        case Debug.log "res" res of
-            Ok m ->
-                ({model | bandcampData = m}
-                , Cmd.none
-                )
-            Err e -> (model, Cmd.none)
 
 
 -- VIEW
@@ -188,13 +176,10 @@ view model =
 view_ : Model -> Element.Element Msg
 view_ model =
     let
-        bandcamp =
-            Bandcamp.statusIndicator model.bandcampCookie
-            |> Element.map Msg.BandcampCookieRetrieved
         header =
             Element.row
                 [Element.Background.color Color.playerGrey, Element.width Element.fill]
-                [playback model, bandcamp]
+                [playback model]
 
         dropArea =
             Element.el

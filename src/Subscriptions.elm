@@ -15,7 +15,8 @@ bandcampSub =
         captureBandcampLib val =
             val
             |> Decode.decodeValue Bandcamp.extractModelFromBlob
-            |> Msg.BandcampDataRetrieved
+            |> Bandcamp.DataRetrieved
+            |> Msg.BandcampMsg
     in
             Bandcamp.bandcamp_library_retrieved captureBandcampLib
 

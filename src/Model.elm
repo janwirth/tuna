@@ -12,13 +12,12 @@ init : Model
 init =
     { dropZone = DropZone.init
     , files = []
-    , bandcampCookie = Nothing
     , tab = LocalTab
     , playing = False
     , playback = Nothing
     , playlists = ["House" , "Jazz"]
     , activePlaylist = Just "Jazz"
-    , bandcampData = Bandcamp.initModel
+    , bandcamp = Bandcamp.initModel
     }
 
 type alias DropPayload = List TransferItem
@@ -47,13 +46,12 @@ type alias FileRef = {name : String, path: String}
 type alias Model =
     { dropZone : DropZoneModel
     , files : List FileRef
-    , bandcampCookie : Maybe Bandcamp.Cookie
+    , bandcamp : Bandcamp.Model
     , tab : Tab
     , playback : Maybe FileRef
     , playing : Bool
     , playlists : List String
     , activePlaylist : Maybe String
-    , bandcampData : Bandcamp.Model
     }
 
 -- [decgen-generated-start] -- DO NOT MODIFY or remove this line
@@ -64,17 +62,16 @@ decodeFileRef =
          ( Decode.field "path" Decode.string )
 
 decodeModel =
-   Decode.succeed
+   Decode.map8
       Model
-         |> Extra.andMap (Decode.field "dropZone" decodeDropZoneModel)
-         |> Extra.andMap (Decode.field "files" (Decode.list decodeFileRef))
-         |> Extra.andMap (Decode.field "bandcampCookie" (Decode.maybe Bandcamp.decodeCookie))
-         |> Extra.andMap (Decode.field "tab" decodeTab)
-         |> Extra.andMap (Decode.field "playback" (Decode.maybe decodeFileRef))
-         |> Extra.andMap (Decode.field "playing" Decode.bool)
-         |> Extra.andMap (Decode.field "playlists" (Decode.list Decode.string))
-         |> Extra.andMap (Decode.field "activePlaylist" (Decode.maybe Decode.string))
-         |> Extra.andMap (Decode.field "bandcampData" Bandcamp.decodeModel)
+         ( Decode.field "dropZone" decodeDropZoneModel )
+         ( Decode.field "files" (Decode.list decodeFileRef) )
+         ( Decode.field "bandcamp" Bandcamp.decodeModel )
+         ( Decode.field "tab" decodeTab )
+         ( Decode.field "playback" (Decode.maybe decodeFileRef) )
+         ( Decode.field "playing" Decode.bool )
+         ( Decode.field "playlists" (Decode.list Decode.string) )
+         ( Decode.field "activePlaylist" (Decode.maybe Decode.string) )
 
 decodeTab =
    let
@@ -95,13 +92,6 @@ encodeFileRef a =
       , ("path", Encode.string a.path)
       ]
 
-encodeMaybeBandcamp_Cookie a =
-   case a of
-      Just b->
-         Bandcamp.encodeCookie b
-      Nothing->
-         Encode.null
-
 encodeMaybeFileRef a =
    case a of
       Just b->
@@ -120,13 +110,12 @@ encodeModel a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
       , ("files", (Encode.list encodeFileRef) a.files)
-      , ("bandcampCookie", encodeMaybeBandcamp_Cookie a.bandcampCookie)
+      , ("bandcamp", Bandcamp.encodeModel a.bandcamp)
       , ("tab", encodeTab a.tab)
       , ("playback", encodeMaybeFileRef a.playback)
       , ("playing", Encode.bool a.playing)
       , ("playlists", (Encode.list Encode.string) a.playlists)
       , ("activePlaylist", encodeMaybeString a.activePlaylist)
-      , ("bandcampData", Bandcamp.encodeModel a.bandcampData)
       ]
 
 encodeTab a =
@@ -136,6 +125,7 @@ encodeTab a =
       LocalTab ->
          Encode.string "LocalTab" 
 -- [decgen-end]
+
 
 
 
