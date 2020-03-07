@@ -9,6 +9,34 @@ import RemoteData
 import Time
 import Dict
 
+browser : Model -> Element.Element msg
+browser model =
+    Dict.toList model.purchases
+    |> List.map viewPurchase
+    |> Element.wrappedRow [Element.spacing 50, Element.padding 50]
+
+viewPurchase : (String, Purchase) -> Element.Element msg
+viewPurchase (id, {title, artist, artwork}) =
+    let
+        imgSrc =
+            "https://f4.bcbits.com/img/a"
+            ++ (String.fromInt artwork)
+            ++ "_16.jpg"
+    in
+    Element.column
+        [Element.width (Element.px 300), Element.spacing 10]
+        [
+            Element.image
+                [Element.height (Element.px 300), Element.width (Element.px 300)]
+                {src = imgSrc, description = title}
+          , Element.column
+            [ Element.spacing 10 ]
+            [ Element.paragraph [] [Element.text title]
+            , Element.text artist
+            ]
+        ]
+
+
 init (Cookie cookie) = bandcamp_init_request cookie
 
 port bandcamp_init_request : String -> Cmd msg

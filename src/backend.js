@@ -1,10 +1,7 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const mime = require('mime-types')
 const LIBRARY_FILE = './library.json'
 const fetch = require('isomorphic-fetch')
 const Entities = require('html-entities').AllHtmlEntities;
+const fs = require('fs')
  
 const entities = new Entities();
 
@@ -43,38 +40,6 @@ const bandcamp_init = app => async cookie => {
 const restore = () => {
     const data = fs.readFileSync(LIBRARY_FILE).toString()
     return JSON.parse(data)
-}
-
-// read files inside directories and return file ref
-const import_ = (req, res) => {
-    let body = [];
-    req.on('data', (chunk) => {
-      body.push(chunk);
-    }).on('end', () => {
-      body = Buffer.concat(body).toString();
-      directories = JSON.parse(body)
-      const files = Array.prototype.concat(...directories.map(scan))
-      // at this point, `body` has the entire request body stored in it as a string
-      res.writeHead(200, {'Content-Type': 'application/json'});
-      res.write(JSON.stringify(files))
-      res.end()
-    });
-}
-
-// recursively scan a directory for audio files
-const scan = directory => {
-    return Array.prototype.concat(...fs.readdirSync(directory).map(fileName => {
-        const fullPath = path.join(directory, fileName)
-        const mimeType = mime.lookup(fullPath)
-        const isDir = fs.lstatSync(fullPath).isDirectory()
-        if ((typeof mimeType == "string") && mimeType.indexOf( "audio") > -1) {
-            return [{path: fullPath, name : fileName}]
-        } else if (isDir) {
-            return scan(fullPath)
-        } else {
-            return []
-        }
-    } ))
 }
 
 const persist = model => {

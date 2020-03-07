@@ -11,6 +11,7 @@ import Browser
 import Browser.Navigation
 import Url
 import Dict
+import FileSystem
 import Bandcamp
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
@@ -33,22 +34,11 @@ import Msg exposing (..)
 type alias Flags = Decode.Value
 
 port persist_ : Encode.Value -> Cmd msg
+port import_ : List String -> Cmd msg
 
 persist : Model -> Cmd msg
 persist =
     encodeModel >> persist_
-
-readDirectories : List String -> Cmd Msg
-readDirectories directories =
-    let
-        encoded = Encode.list Encode.string directories
-        params =
-            { url = "http://localhost:8080/import"
-            , body = Http.jsonBody encoded
-            , expect = Http.expectJson FilesRead (Decode.list decodeFileRef)
-            }
-    in
-    Http.post params
 
 
 uriDecorder : Decode.Decoder DropPayload
@@ -93,14 +83,30 @@ main =
 
 subscriptions : Model.Model -> Sub Msg.Msg
 subscriptions model =
+    Sub.batch [bandcampSub, filesystemSub]
+
+bandcampSub : Sub Msg.Msg
+bandcampSub =
     let
-        capture val =
+        captureBandcampLib val =
             val
             |> Decode.decodeValue Bandcamp.extractModelFromBlob
             |> BandcampDataRetrieved
     in
-    Bandcamp.bandcamp_library_retrieved
-        capture
+            Bandcamp.bandcamp_library_retrieved captureBandcampLib
+
+
+
+filesystemSub : Sub Msg.Msg
+filesystemSub =
+    let
+        captureFileSystemScan val =
+            val
+            |> Decode.decodeValue (Decode.list decodeFileRef)
+            |> FilesRead
+    in
+      FileSystem.directories_scanned captureFileSystemScan
+
 -- MODEL
 
 
@@ -161,25 +167,13 @@ update msg model =
                   , files = model.files ++ newAudioFiles |> ensureUnique
                   }
         in
-        (mdl, Cmd.batch [persist mdl, readDirectories newDirectories ])
+        (mdl, Cmd.batch [persist mdl, FileSystem.scan_directories newDirectories ])
     DropZoneMsg a ->
         -- These are the other DropZone actions that are not exposed,
         -- but you still need to hand it to DropZone.update so
         -- the DropZone model stays consistent
         ({ model | dropZone = DropZone.update a model.dropZone }, Cmd.none)
     Saved -> (model, Cmd.none)
-    Restored res ->
-        case res of
-            Err e -> (model, Cmd.none)
-            Ok restored ->
-                let
-                    cmd = case restored.bandcampCookie of
-                            Nothing -> Cmd.none
-                            Just c -> Bandcamp.init c
-                                |> Cmd.map BandcampDataRetrieved
-                in
-
-                (restored, cmd)
     FilesRead res ->
         case res of
             Err e -> (model, Cmd.none)
@@ -234,7 +228,10 @@ view_ model =
         <| Element.column
             [Element.clipY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill]
             [header
-            , browser model]
+            , browser model
+--             , Bandcamp.browser
+--                 model.bandcampData
+            ]
 
 browser model =
     let
