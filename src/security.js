@@ -5,6 +5,7 @@ const allowAppAsFrameAncestor = session => {
     // only bandcamp for now :)
     const filter = {urls: ['https://bandcamp.com/login']}
     session.webRequest.onHeadersReceived(filter, (info, callback) => {
+        console.log(info)
         const responseHeaders = info.responseHeaders
         // update header
         responseHeaders['Content-Security-Policy'] ="frame-ancestors self app://tuna"

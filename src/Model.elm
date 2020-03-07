@@ -19,15 +19,19 @@ type TransferItem =
     DroppedFile FileRef
     | DroppedDirectory String
 
+type BandcampCookie = BandcampCookie String
+type alias BandcampCookie_ = Maybe BandcampCookie
+encodeBandcampCookie_ _ = Encode.null
+decodeBandcampCookie_ = Decode.succeed Nothing
+
 -- [decgen-start]
 
-type BandcampCookie = BandcampCookie String
 type alias FileRef = {name : String, path: String}
 
 type alias Model =
     { dropZone : DropZoneModel
     , files : List FileRef
-    , bandcampCookie : Maybe BandcampCookie
+    , bandcampCookie : BandcampCookie_
     , playback : Maybe FileRef
     , playing : Bool
     , playlists : List String
@@ -35,9 +39,6 @@ type alias Model =
     }
 
 -- [decgen-generated-start] -- DO NOT MODIFY or remove this line
-decodeBandcampCookie =
-   Decode.map BandcampCookie Decode.string
-
 decodeFileRef =
    Decode.map2
       FileRef
@@ -49,27 +50,17 @@ decodeModel =
       Model
          ( Decode.field "dropZone" decodeDropZoneModel )
          ( Decode.field "files" (Decode.list decodeFileRef) )
-         ( Decode.field "bandcampCookie" (Decode.maybe decodeBandcampCookie) )
+         ( Decode.field "bandcampCookie" decodeBandcampCookie_ )
          ( Decode.field "playback" (Decode.maybe decodeFileRef) )
          ( Decode.field "playing" Decode.bool )
          ( Decode.field "playlists" (Decode.list Decode.string) )
          ( Decode.field "activePlaylist" (Decode.maybe Decode.string) )
-
-encodeBandcampCookie (BandcampCookie a1) =
-   Encode.string a1
 
 encodeFileRef a =
    Encode.object
       [ ("name", Encode.string a.name)
       , ("path", Encode.string a.path)
       ]
-
-encodeMaybeBandcampCookie a =
-   case a of
-      Just b->
-         encodeBandcampCookie b
-      Nothing->
-         Encode.null
 
 encodeMaybeFileRef a =
    case a of
@@ -89,14 +80,11 @@ encodeModel a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
       , ("files", (Encode.list encodeFileRef) a.files)
-      , ("bandcampCookie", encodeMaybeBandcampCookie a.bandcampCookie)
+      , ("bandcampCookie", encodeBandcampCookie_ a.bandcampCookie)
       , ("playback", encodeMaybeFileRef a.playback)
       , ("playing", Encode.bool a.playing)
       , ("playlists", (Encode.list Encode.string) a.playlists)
       , ("activePlaylist", encodeMaybeString a.activePlaylist)
       ] 
 -- [decgen-end]
-
-
-
 
