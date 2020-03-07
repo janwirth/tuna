@@ -5,23 +5,31 @@ import Html.Events
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Html
-import RemoteData
+import RemoteData exposing (WebData)
 import Time
 import Dict
 import Element.Input
 import Element.Font
+import Element.Background
+import Color
 
 type Msg =
     CookieRetrieved Cookie
   | DataRetrieved (Result Decode.Error Library)
-  | DownloadButtonClicked String
+  | DownloadButtonClicked Int
 
+to_download_id : Int -> String
+to_download_id id =
+    "p" ++ String.fromInt id
 browser : Model -> Element.Element Msg
 browser model =
-    case model of
-        NoCookie -> authElement
-        Loading cookie -> Element.paragraph [Element.padding 50, Element.Font.center] [Element.text "Loading..."]
-        Loaded cookie library ->
+    let
+        loading =
+            Element.paragraph
+                [Element.padding 50, Element.Font.center]
+                [Element.text "Loading..."]
+
+        viewLib lib =
             let
                 attribs =
                     [ Element.height Element.fill
@@ -32,25 +40,48 @@ browser model =
                     , Element.padding 50
                     ]
                 content =
-                    Dict.toList library.purchases
-                    |> List.map (viewPurchase library)
+                    Dict.toList lib.purchases
+                    |> List.map (viewPurchase model.downloads lib)
             in
                 Element.wrappedRow attribs content
 
-viewPurchase : Library -> (String, Purchase) -> Element.Element Msg
-viewPurchase library (id, {title, artist, artwork}) =
+    in case model.cookie of
+        Nothing -> authElement
+        Just _ -> case model.library of
+            RemoteData.NotAsked -> loading
+            RemoteData.Failure e -> Element.text e
+            RemoteData.Loading -> loading
+            RemoteData.Success library ->
+                viewLib library
+
+viewPurchase : Downloads -> Library -> (String, Purchase) -> Element.Element Msg
+viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
     let
-        downloadUrl = Dict.get id library.download_urls
+        download_id = to_download_id item_id
+        download_url =
+            Dict.get download_id library.download_urls
         imgSrc =
             "https://f4.bcbits.com/img/a"
             ++ (String.fromInt artwork)
             ++ "_16.jpg"
+        viewLabel =
+            case Dict.get item_id downloads of
+                Nothing -> Element.text "download"
+                Just (Waiting) -> Element.text "waiting"
+                Just (Downloading pct) -> Element.text (">> " ++ String.fromInt pct)
+                Just (Completed) -> Element.text "Downloaded"
+                Just (Error) -> Element.text "Error"
+
         viewDownloadButton =
-            Element.Input.button
-                []
-                { label = Element.text "download"
-                , onPress = Just <| DownloadButtonClicked id
-                }
+            case download_url of
+                Just u ->
+                    Element.Input.button
+                        [Element.padding 10, Element.Background.color Color.playerGrey]
+                        { label = viewLabel
+                        , onPress = Just <| DownloadButtonClicked item_id
+                        }
+                Nothing ->
+                    Element.text "no download available"
         viewInfo =
             Element.column
                 [ Element.spacing 10 ]
@@ -73,10 +104,9 @@ viewPurchase library (id, {title, artist, artwork}) =
 
 initCmd : Model -> Cmd Msg
 initCmd model =
-    case model of
-        Loading (Cookie cookie) -> fetchLatestLibrary cookie
-        Loaded (Cookie cookie) library -> fetchLatestLibrary cookie
-        NoCookie -> Cmd.none
+    case model.cookie of
+        Just (Cookie cookie) -> fetchLatestLibrary cookie
+        Nothing -> Cmd.none
 
 fetchLatestLibrary : String -> Cmd Msg
 fetchLatestLibrary cookie =
@@ -95,10 +125,11 @@ extractModelFromBlob =
 
         extractPurchase : Decode.Decoder Purchase
         extractPurchase =
-            Decode.map3 Purchase
+            Decode.map4 Purchase
                 (Decode.field "item_title" Decode.string)
                 (Decode.field "band_name" Decode.string)
                 (Decode.field "item_art_id" Decode.int)
+                (Decode.field "sale_item_id" Decode.int)
 
         extractDownloadUrls : Decode.Decoder (Dict.Dict String String)
         extractDownloadUrls =
@@ -113,25 +144,44 @@ extractModelFromBlob =
 
 initModel : Model
 initModel =
-    NoCookie
+    Model
+        RemoteData.NotAsked
+        Nothing
+        Dict.empty
 
-initLibrary =
-    Library
-        Dict.empty
-        Dict.empty
 type alias Date = Time.Posix
 
 encodeDate = Time.posixToMillis >> Encode.int
 decodeDate = Decode.int |> Decode.map Time.millisToPosix
 
 type alias Track = {title : String, number : Int}
+type alias RemoteLibrary =
+    RemoteData.RemoteData String Library
+
+decodeRemoteLibrary : Decode.Decoder RemoteLibrary
+decodeRemoteLibrary =
+        decodeMaybeLibrary
+        |> Decode.map (RemoteData.fromMaybe "Stored library not found")
+
+encodeRemoteLibrary : RemoteLibrary -> Encode.Value
+encodeRemoteLibrary =
+    RemoteData.toMaybe
+    >> encodeMaybeLibrary
 
 -- [decgen-start]
-type Model =
-    NoCookie
-    | Loading Cookie
-    | Loaded Cookie Library
+type alias MaybeLibrary = Maybe Library
+type alias Model =
+    { library : RemoteLibrary
+    , cookie : Maybe Cookie
+    , downloads : Downloads
+    }
 
+type alias Downloads = Dict.Dict Int Download
+type Download =
+    Waiting
+    | Downloading Int
+    | Completed
+    | Error
 
 type alias Library =
     { download_urls : Dict.Dict String String
@@ -146,6 +196,7 @@ type alias Purchase =
     { title: String
     , artist : String
     , artwork: Int
+    , item_id : Int
     }
 type Cookie = Cookie String
 
@@ -173,6 +224,34 @@ decodeDictStringString =
    in
       Decode.map Dict.fromList (Decode.list decodeDictStringStringTuple)
 
+decodeDownload =
+   Decode.field "Constructor" Decode.string |> Decode.andThen decodeDownloadHelp
+
+decodeDownloadHelp constructor =
+   case constructor of
+      "Waiting" ->
+         Decode.succeed Waiting
+      "Downloading" ->
+         Decode.map
+            Downloading
+               ( Decode.field "A1" Decode.int )
+      "Completed" ->
+         Decode.succeed Completed
+      "Error" ->
+         Decode.succeed Error
+      other->
+         Decode.fail <| "Unknown constructor for type Download: " ++ other
+
+decodeDownloads =
+   let
+      decodeDownloadsTuple =
+         Decode.map2
+            (\a1 a2 -> (a1, a2))
+               ( Decode.field "A1" Decode.int )
+               ( Decode.field "A2" decodeDownload )
+   in
+      Decode.map Dict.fromList (Decode.list decodeDownloadsTuple)
+
 decodeLibrary =
    Decode.map2
       Library
@@ -185,31 +264,23 @@ decodeLoadedModel =
          ( Decode.field "library" decodeLibrary )
          ( Decode.field "cookie" (Decode.maybe decodeCookie) )
 
-decodeModel =
-   Decode.field "Constructor" Decode.string |> Decode.andThen decodeModelHelp
+decodeMaybeLibrary =
+   Decode.maybe decodeLibrary
 
-decodeModelHelp constructor =
-   case constructor of
-      "NoCookie" ->
-         Decode.succeed NoCookie
-      "Loading" ->
-         Decode.map
-            Loading
-               ( Decode.field "A1" decodeCookie )
-      "Loaded" ->
-         Decode.map2
-            Loaded
-               ( Decode.field "A1" decodeCookie )
-               ( Decode.field "A2" decodeLibrary )
-      other->
-         Decode.fail <| "Unknown constructor for type Model: " ++ other
+decodeModel =
+   Decode.map3
+      Model
+         ( Decode.field "library" decodeRemoteLibrary )
+         ( Decode.field "cookie" (Decode.maybe decodeCookie) )
+         ( Decode.field "downloads" decodeDownloads )
 
 decodePurchase =
-   Decode.map3
+   Decode.map4
       Purchase
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
          ( Decode.field "artwork" Decode.int )
+         ( Decode.field "item_id" Decode.int )
 
 encodeCookie (Cookie a1) =
    Encode.string a1
@@ -232,6 +303,35 @@ encodeDictStringString a =
    in
       (Encode.list encodeDictStringStringTuple) (Dict.toList a)
 
+encodeDownload a =
+   case a of
+      Waiting ->
+         Encode.object
+            [ ("Constructor", Encode.string "Waiting")
+            ]
+      Downloading a1->
+         Encode.object
+            [ ("Constructor", Encode.string "Downloading")
+            , ("A1", Encode.int a1)
+            ]
+      Completed ->
+         Encode.object
+            [ ("Constructor", Encode.string "Completed")
+            ]
+      Error ->
+         Encode.object
+            [ ("Constructor", Encode.string "Error")
+            ]
+
+encodeDownloads a =
+   let
+      encodeDownloadsTuple (a1,a2) =
+         Encode.object
+            [ ("A1", Encode.int a1)
+            , ("A2", encodeDownload a2) ]
+   in
+      (Encode.list encodeDownloadsTuple) (Dict.toList a)
+
 encodeLibrary a =
    Encode.object
       [ ("download_urls", encodeDictStringString a.download_urls)
@@ -251,29 +351,26 @@ encodeMaybeCookie a =
       Nothing->
          Encode.null
 
-encodeModel a =
+encodeMaybeLibrary a =
    case a of
-      NoCookie ->
-         Encode.object
-            [ ("Constructor", Encode.string "NoCookie")
-            ]
-      Loading a1->
-         Encode.object
-            [ ("Constructor", Encode.string "Loading")
-            , ("A1", encodeCookie a1)
-            ]
-      Loaded a1 a2->
-         Encode.object
-            [ ("Constructor", Encode.string "Loaded")
-            , ("A1", encodeCookie a1)
-            , ("A2", encodeLibrary a2)
-            ]
+      Just b->
+         encodeLibrary b
+      Nothing->
+         Encode.null
+
+encodeModel a =
+   Encode.object
+      [ ("library", encodeRemoteLibrary a.library)
+      , ("cookie", encodeMaybeCookie a.cookie)
+      , ("downloads", encodeDownloads a.downloads)
+      ]
 
 encodePurchase a =
    Encode.object
       [ ("title", Encode.string a.title)
       , ("artist", Encode.string a.artist)
       , ("artwork", Encode.int a.artwork)
+      , ("item_id", Encode.int a.item_id)
       ] 
 -- [decgen-end]
 
@@ -300,7 +397,6 @@ extractPageData =
     let
         getBlob html =
             html
-            |> Debug.log "blob"
             |> always (Decode.fail "get blob först")
     in
         Decode.string
@@ -308,19 +404,37 @@ extractPageData =
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case model of
-        NoCookie -> case msg of
-            CookieRetrieved (Cookie c) -> (Loading (Cookie c), fetchLatestLibrary c)
-            _ -> (model, Cmd.none)
-        Loading cookie -> case msg of
-            DataRetrieved res ->
-                case Debug.log "res" res of
-                    Ok library ->
-                        (Loaded cookie library
-                        , Cmd.none
-                        )
-                    Err e -> (model, Cmd.none)
-            _ -> (model, Cmd.none)
-        Loaded cookie library -> case msg of
-            DownloadButtonClicked bandcampPurchaseId -> Debug.todo "download"
-            _ -> (model, Cmd.none)
+    case msg of
+        CookieRetrieved (Cookie c) ->
+            ({model | cookie = Just (Cookie c)}
+            , fetchLatestLibrary c)
+        DataRetrieved res ->
+            case res of
+                Ok newLibrary ->
+                    ({model | library = RemoteData.succeed newLibrary}
+                    , Cmd.none
+                    )
+                Err e -> (model, Cmd.none)
+        DownloadButtonClicked id ->
+            let
+                return =
+                    model.library
+                    |> RemoteData.toMaybe
+                    |> Maybe.andThen (\{download_urls} -> Dict.get (to_download_id id) download_urls)
+                    |> Maybe.map startdownload
+                    |> Maybe.withDefault (model, Cmd.none)
+                startdownload download_url =
+                    let
+                        downloadCmd = bandcamp_start_download (id, download_url)
+                        mdl =
+                            { model
+                            | downloads = Dict.insert id Waiting model.downloads
+                            }
+                    in
+                        (mdl, downloadCmd)
+            in
+                return
+
+port bandcamp_start_download : (Int, String) -> Cmd msg
+
+
