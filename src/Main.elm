@@ -229,15 +229,18 @@ view_ model =
             [Element.clipY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill]
             [header
             , browser model
---             , Bandcamp.browser
---                 model.bandcampData
             ]
 
+
+browser : Model.Model -> Element.Element Msg.Msg
 browser model =
     let
-        v = Element.row
+        localBrowser = Element.row
             [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
             [{-playlists,-} filesList]
+
+        bcBrowser = Bandcamp.browser
+                model.bandcampData
 
         playlists =
                 Element.column
@@ -248,7 +251,10 @@ browser model =
                 ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
                 (List.map (viewFileRef model) model.files)
     in
-        v
+        case model.tab of
+            LocalTab -> localBrowser
+            BandcampTab -> bcBrowser
+
 playerGrey = Element.rgb 0.95 0.955 0.96
 offWhite = Element.rgb 0.97 0.975 0.98
 

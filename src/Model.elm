@@ -6,12 +6,14 @@ import Json.Encode as Encode
 import Bandcamp
 import Time
 import Dict
+import Json.Decode.Extra as Extra
 
 init : Model
 init =
-    {dropZone = DropZone.init
+    { dropZone = DropZone.init
     , files = []
     , bandcampCookie = Nothing
+    , tab = LocalTab
     , playing = False
     , playback = Nothing
     , playlists = ["House" , "Jazz"]
@@ -38,6 +40,7 @@ type TransferItem =
 -- encodeBandcampCookie_ _ = Encode.null
 -- decodeBandcampCookie_ = Decode.succeed Nothing
 -- [decgen-start]
+type Tab = BandcampTab | LocalTab
 
 type alias FileRef = {name : String, path: String}
 
@@ -45,6 +48,7 @@ type alias Model =
     { dropZone : DropZoneModel
     , files : List FileRef
     , bandcampCookie : Maybe Bandcamp.Cookie
+    , tab : Tab
     , playback : Maybe FileRef
     , playing : Bool
     , playlists : List String
@@ -60,16 +64,30 @@ decodeFileRef =
          ( Decode.field "path" Decode.string )
 
 decodeModel =
-   Decode.map8
+   Decode.succeed
       Model
-         ( Decode.field "dropZone" decodeDropZoneModel )
-         ( Decode.field "files" (Decode.list decodeFileRef) )
-         ( Decode.field "bandcampCookie" (Decode.maybe Bandcamp.decodeCookie) )
-         ( Decode.field "playback" (Decode.maybe decodeFileRef) )
-         ( Decode.field "playing" Decode.bool )
-         ( Decode.field "playlists" (Decode.list Decode.string) )
-         ( Decode.field "activePlaylist" (Decode.maybe Decode.string) )
-         ( Decode.field "bandcampData" Bandcamp.decodeModel )
+         |> Extra.andMap (Decode.field "dropZone" decodeDropZoneModel)
+         |> Extra.andMap (Decode.field "files" (Decode.list decodeFileRef))
+         |> Extra.andMap (Decode.field "bandcampCookie" (Decode.maybe Bandcamp.decodeCookie))
+         |> Extra.andMap (Decode.field "tab" decodeTab)
+         |> Extra.andMap (Decode.field "playback" (Decode.maybe decodeFileRef))
+         |> Extra.andMap (Decode.field "playing" Decode.bool)
+         |> Extra.andMap (Decode.field "playlists" (Decode.list Decode.string))
+         |> Extra.andMap (Decode.field "activePlaylist" (Decode.maybe Decode.string))
+         |> Extra.andMap (Decode.field "bandcampData" Bandcamp.decodeModel)
+
+decodeTab =
+   let
+      recover x =
+         case x of
+            "BandcampTab"->
+               Decode.succeed BandcampTab
+            "LocalTab"->
+               Decode.succeed LocalTab
+            other->
+               Decode.fail <| "Unknown constructor for type Tab: " ++ other
+   in
+      Decode.string |> Decode.andThen recover
 
 encodeFileRef a =
    Encode.object
@@ -103,10 +121,21 @@ encodeModel a =
       [ ("dropZone", encodeDropZoneModel a.dropZone)
       , ("files", (Encode.list encodeFileRef) a.files)
       , ("bandcampCookie", encodeMaybeBandcamp_Cookie a.bandcampCookie)
+      , ("tab", encodeTab a.tab)
       , ("playback", encodeMaybeFileRef a.playback)
       , ("playing", Encode.bool a.playing)
       , ("playlists", (Encode.list Encode.string) a.playlists)
       , ("activePlaylist", encodeMaybeString a.activePlaylist)
       , ("bandcampData", Bandcamp.encodeModel a.bandcampData)
-      ] 
+      ]
+
+encodeTab a =
+   case a of
+      BandcampTab ->
+         Encode.string "BandcampTab"
+      LocalTab ->
+         Encode.string "LocalTab" 
 -- [decgen-end]
+
+
+
