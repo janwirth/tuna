@@ -233,7 +233,7 @@ browser model =
     let
         v = Element.row
             [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
-            [playlists, filesList]
+            [{-playlists,-} filesList]
 
         playlists =
                 Element.column
