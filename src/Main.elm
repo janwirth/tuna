@@ -8,7 +8,10 @@ port module Main exposing (..)
 
 
 import Browser
+import MusicBrowser
+import Color
 import Browser.Navigation
+import Element.Input
 import Url
 import Dict
 import FileSystem
@@ -30,6 +33,7 @@ import Element.Font
 import Url
 import Model exposing (..)
 import Msg exposing (..)
+import Subscriptions exposing (subscriptions)
 
 type alias Flags = Decode.Value
 
@@ -81,32 +85,6 @@ main =
       , onUrlRequest = always Paused
       }
 
-subscriptions : Model.Model -> Sub Msg.Msg
-subscriptions model =
-    Sub.batch [bandcampSub, filesystemSub]
-
-bandcampSub : Sub Msg.Msg
-bandcampSub =
-    let
-        captureBandcampLib val =
-            val
-            |> Decode.decodeValue Bandcamp.extractModelFromBlob
-            |> BandcampDataRetrieved
-    in
-            Bandcamp.bandcamp_library_retrieved captureBandcampLib
-
-
-
-filesystemSub : Sub Msg.Msg
-filesystemSub =
-    let
-        captureFileSystemScan val =
-            val
-            |> Decode.decodeValue (Decode.list decodeFileRef)
-            |> FilesRead
-    in
-      FileSystem.directories_scanned captureFileSystemScan
-
 -- MODEL
 
 
@@ -130,6 +108,7 @@ ensureUnique = List.Extra.uniqueBy .path
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    TabClicked newTab -> ({model | tab = newTab}, Cmd.none)
     BandcampCookieRetrieved cookie ->
         let
             mdl = {model | bandcampCookie = Just cookie}
@@ -214,7 +193,7 @@ view_ model =
             |> Element.map Msg.BandcampCookieRetrieved
         header =
             Element.row
-                [Element.Background.color playerGrey, Element.width Element.fill]
+                [Element.Background.color Color.playerGrey, Element.width Element.fill]
                 [playback model, bandcamp]
 
         dropArea =
@@ -228,42 +207,24 @@ view_ model =
         <| Element.column
             [Element.clipY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill]
             [header
-            , browser model
+            , MusicBrowser.view model
             ]
-
-
-browser : Model.Model -> Element.Element Msg.Msg
-browser model =
-    let
-        localBrowser = Element.row
-            [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
-            [{-playlists,-} filesList]
-
-        bcBrowser = Bandcamp.browser
-                model.bandcampData
-
-        playlists =
-                Element.column
-                    ([Element.clipX, Element.width <| Element.px 300, Element.height Element.fill, Element.Background.color offWhite])
-                    (List.map (viewPlaylist model) model.playlists)
-        filesList =
-            Element.column
-                ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
-                (List.map (viewFileRef model) model.files)
-    in
-        case model.tab of
-            LocalTab -> localBrowser
-            BandcampTab -> bcBrowser
-
-playerGrey = Element.rgb 0.95 0.955 0.96
-offWhite = Element.rgb 0.97 0.975 0.98
 
 playback : Model -> Element.Element Msg
 playback model =
     let
         playbackBarAttribs =
-            [Element.height <| Element.px 54, Element.spacing 5, Element.width Element.fill, Element.Background.color <| playerGrey]
-        marqueeStyles = [draggable, Element.height Element.fill, Element.width (Element.fillPortion 1 |> Element.minimum 150), Element.Font.color blue]
+            [ Element.height <| Element.px 54
+            , Element.spacing 5
+            , Element.width Element.fill
+            , Element.Background.color <| Color.playerGrey
+            ]
+        marqueeStyles =
+            [ draggable
+            , Element.height Element.fill
+            , Element.width (Element.fillPortion 1 |> Element.minimum 150)
+            , Element.Font.color Color.blue
+            ]
         playingMarquee txt =
             Element.el
                 marqueeStyles
@@ -305,66 +266,6 @@ player model {path, name} =
             |> Element.el [Element.width Element.fill]
     in
         a
-
-blue = Element.rgb 0.2 0.2 0.8
-blueTransparent = Element.rgba 0.2 0.2 0.8 0.1
-white = Element.rgb 1 1 1
-
-    -- <video controls="" autoplay="" name="media"><source src="file:///home/jan/Downloads/Various%20Artists%20-%204%20To%20The%20Floor%20Volume%2001/Ben%20Westbeech%20-%204%20To%20The%20Floor%20Volume%2001%20-%2039%20Falling%20(Deetron%20Paradise%20Vocal%20Remix).wav" type="audio/wav"></video>
-viewFileRef model fileRef =
-    let
-        attribs = [Element.Events.onClick (Play fileRef)
-            , Element.padding 10
-            , Element.spacing 10
-            , Element.width Element.fill
-            , Element.mouseOver [Element.Background.color blueTransparent]
-            , Element.pointer
-            ]
-        playingMarker =
-            Element.el
-                [ Element.width <| Element.px 8
-                , Element.height <| Element.px 8
-                , Element.Border.rounded 4
-                , Element.moveUp 1 -- baseline correction
-                , Element.centerY
-                , if model.playback == Just fileRef then Element.Background.color blue else Element.Background.color white
-                ]
-                Element.none
-        content =
-            [ playingMarker
-            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text fileRef.name]
-            -- , Element.el [] (Element.text fileRef.path)
-            ]
-    in
-        Element.row attribs content
-
-viewPlaylist model name =
-    let
-        attribs = [-- Element.Events.onClick (Play fileRef)
-            Element.padding 15
-            , Element.spacing 15
-            , Element.width Element.fill
-            , Element.mouseOver [Element.Background.color blueTransparent]
-            , Element.pointer
-            ]
-        playingMarker =
-            Element.el
-                [ Element.width <| Element.px 8
-                , Element.height <| Element.px 8
-                , Element.Border.rounded 4
-                , Element.moveUp 1 -- baseline correction
-                , Element.centerY
-                , if model.activePlaylist == Just name then Element.Background.color blue else Element.Background.color white
-                ]
-                Element.none
-        content =
-            [ playingMarker
-            , Element.text name
-            -- , Element.el [] (Element.text fileRef.path)
-            ]
-    in
-        Element.row attribs content
-
 
 
 

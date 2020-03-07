@@ -18,3 +18,5 @@ type Msg
 
   | BandcampCookieRetrieved Bandcamp.Cookie
   | BandcampDataRetrieved (Result Decode.Error Bandcamp.Model)
+
+  | TabClicked Model.Tab

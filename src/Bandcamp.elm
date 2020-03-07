@@ -11,9 +11,20 @@ import Dict
 
 browser : Model -> Element.Element msg
 browser model =
-    Dict.toList model.purchases
-    |> List.map viewPurchase
-    |> Element.wrappedRow [Element.spacing 50, Element.padding 50]
+    let
+        attribs =
+            [ Element.height Element.fill
+            , Element.width Element.fill
+            , Element.clipY
+            , Element.scrollbarY
+            , Element.spacing 50
+            , Element.padding 50
+            ]
+        content =
+            Dict.toList model.purchases
+            |> List.map viewPurchase
+    in
+        Element.wrappedRow attribs content
 
 viewPurchase : (String, Purchase) -> Element.Element msg
 viewPurchase (id, {title, artist, artwork}) =
@@ -22,18 +33,23 @@ viewPurchase (id, {title, artist, artwork}) =
             "https://f4.bcbits.com/img/a"
             ++ (String.fromInt artwork)
             ++ "_16.jpg"
+        viewInfo =
+            Element.column
+                [ Element.spacing 10 ]
+                [ Element.paragraph [] [Element.text title]
+                , Element.text artist
+                ]
+
+        viewArtwork =
+            Element.image
+                [Element.height (Element.px 300), Element.width (Element.px 300)]
+                {src = imgSrc, description = title}
     in
     Element.column
         [Element.width (Element.px 300), Element.spacing 10]
         [
-            Element.image
-                [Element.height (Element.px 300), Element.width (Element.px 300)]
-                {src = imgSrc, description = title}
-          , Element.column
-            [ Element.spacing 10 ]
-            [ Element.paragraph [] [Element.text title]
-            , Element.text artist
-            ]
+            viewArtwork
+          , viewInfo
         ]
 
 
