@@ -9,17 +9,47 @@ import Time
 import Dict
 import Json.Decode.Extra as Extra
 import FileSystem
+import Track
+import Json.Decode as Decode
+import Random.Pcg.Extended
+import Url
+import Player
 
+import Browser.Navigation
 
-init : Model
-init =
+type alias Flags = {restored : Decode.Value, seed : Int, seed_extension : List Int}
+
+decodeOrInit : Flags -> Url.Url -> Browser.Navigation.Key -> Model
+decodeOrInit flags url key =
+    let
+        seed = Random.Pcg.Extended.initialSeed flags.seed flags.seed_extension
+        userModel : UserModel
+        userModel =
+            Decode.decodeValue decodeUserModel flags.restored
+            |> Result.toMaybe
+            |> Maybe.withDefault initUserModel
+        { dropZone
+            , tracks
+            , tab
+            , player
+            , bandcamp
+            } = userModel
+    in
+        { key = key
+        , seed = seed
+        , dropZone = dropZone
+        , tracks = tracks
+        , tab = tab
+        , player = player
+        , bandcamp = bandcamp
+        }
+
+initUserModel : UserModel
+initUserModel =
     { dropZone = DropZone.init
-    , files = []
+    , tracks = Track.initTracks
     , tab = LocalTab
-    , playing = False
-    , playback = Nothing
-    , playlists = ["House" , "Jazz"]
-    , activePlaylist = Just "Jazz"
+    , player = Player.init
     , bandcamp = Bandcamp.Model.initModel
     }
 
@@ -38,37 +68,29 @@ type TransferItem =
     DroppedFile FileSystem.FileRef
     | DroppedDirectory String
 
+type alias Internals mdl =
+    { mdl
+    | key : Browser.Navigation.Key
+    , seed : Random.Pcg.Extended.Seed
+    }
+type alias Model = Internals UserModel
 -- never persist bandcamp cookie
 -- encodeBandcampCookie_ _ = Encode.null
 -- decodeBandcampCookie_ = Decode.succeed Nothing
--- [decgen-start]
+-- [generator-start]
+{-| A track ID based on the hash of initial metadata -}
 type Tab = BandcampTab | LocalTab
 
 
-type alias Model =
+type alias UserModel =
     { dropZone : DropZoneModel
-    , files : List FileSystem.FileRef
+    , tracks : Track.Tracks
     , bandcamp : Bandcamp.Model.Model
     , tab : Tab
-    , playback : Maybe FileSystem.FileRef
-    , playing : Bool
-    , playlists : List String
-    , activePlaylist : Maybe String
+    , player : Player.Model
     }
 
--- [decgen-generated-start] -- DO NOT MODIFY or remove this line
-decodeModel =
-   Decode.map8
-      Model
-         ( Decode.field "dropZone" decodeDropZoneModel )
-         ( Decode.field "files" (Decode.list FileSystem.decodeFileRef) )
-         ( Decode.field "bandcamp" Bandcamp.Model.decodeModel )
-         ( Decode.field "tab" decodeTab )
-         ( Decode.field "playback" (Decode.maybe FileSystem.decodeFileRef) )
-         ( Decode.field "playing" Decode.bool )
-         ( Decode.field "playlists" (Decode.list Decode.string) )
-         ( Decode.field "activePlaylist" (Decode.maybe Decode.string) )
-
+-- [generator-generated-start] -- DO NOT MODIFY or remove this line
 decodeTab =
    let
       recover x =
@@ -82,39 +104,37 @@ decodeTab =
    in
       Decode.string |> Decode.andThen recover
 
-encodeMaybeFileSystem_FileRef a =
-   case a of
-      Just b->
-         FileSystem.encodeFileRef b
-      Nothing->
-         Encode.null
-
-encodeMaybeString a =
-   case a of
-      Just b->
-         Encode.string b
-      Nothing->
-         Encode.null
-
-encodeModel a =
-   Encode.object
-      [ ("dropZone", encodeDropZoneModel a.dropZone)
-      , ("files", (Encode.list FileSystem.encodeFileRef) a.files)
-      , ("bandcamp", Bandcamp.Model.encodeModel a.bandcamp)
-      , ("tab", encodeTab a.tab)
-      , ("playback", encodeMaybeFileSystem_FileRef a.playback)
-      , ("playing", Encode.bool a.playing)
-      , ("playlists", (Encode.list Encode.string) a.playlists)
-      , ("activePlaylist", encodeMaybeString a.activePlaylist)
-      ]
+decodeUserModel =
+   Decode.map5
+      UserModel
+         ( Decode.field "dropZone" decodeDropZoneModel )
+         ( Decode.field "tracks" Track.decodeTracks )
+         ( Decode.field "bandcamp" Bandcamp.Model.decodeModel )
+         ( Decode.field "tab" decodeTab )
+         ( Decode.field "player" Player.decodeModel )
 
 encodeTab a =
    case a of
       BandcampTab ->
          Encode.string "BandcampTab"
       LocalTab ->
-         Encode.string "LocalTab" 
--- [decgen-end]
+         Encode.string "LocalTab"
+
+encodeUserModel a =
+   Encode.object
+      [ ("dropZone", encodeDropZoneModel a.dropZone)
+      , ("tracks", Track.encodeTracks a.tracks)
+      , ("bandcamp", Bandcamp.Model.encodeModel a.bandcamp)
+      , ("tab", encodeTab a.tab)
+      , ("player", Player.encodeModel a.player)
+      ] 
+-- [generator-end]
+
+
+
+
+
+
 
 
 

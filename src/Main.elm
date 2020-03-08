@@ -9,6 +9,7 @@ port module Main exposing (..)
 
 import Browser
 import MusicBrowser
+import Player
 import Color
 import Browser.Navigation
 import Element.Input
@@ -16,6 +17,7 @@ import Url
 import Dict
 import FileSystem
 import Bandcamp
+import Bandcamp.Downloader
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (style)
@@ -34,8 +36,8 @@ import Url
 import Model exposing (..)
 import Msg exposing (..)
 import Subscriptions exposing (subscriptions)
-
-type alias Flags = Decode.Value
+import Queue
+import Track
 
 port persist_ : Encode.Value -> Cmd msg
 port import_ : List String -> Cmd msg
@@ -43,7 +45,7 @@ port bandcamp_import : Int -> Cmd msg
 
 persist : Model -> Cmd msg
 persist =
-    encodeModel >> persist_
+    Model.encodeUserModel >> persist_
 
 uriDecorder : Decode.Decoder DropPayload
 uriDecorder =
@@ -74,28 +76,29 @@ uriDecorder =
 -- MAIN
 
 
-main : Platform.Program Flags Model Msg
+main : Platform.Program Model.Flags Model Msg
 main =
   Browser.application
       { init = init
-      , update = update
+      , update = updateWithHooks
       , view = view
       , subscriptions = subscriptions
-      , onUrlChange = always Paused
-      , onUrlRequest = always Paused
+      , onUrlChange = always UrlChanged
+      , onUrlRequest = always UrlRequested
       }
 
+updateWithHooks msg model =
+    model
+    |> update msg
+    |> hooks msg
 -- MODEL
 
 
 
-init : Flags -> Url.Url -> Browser.Navigation.Key -> (Model, Cmd Msg)
+init : Model.Flags -> Url.Url -> Browser.Navigation.Key -> (Model.Model, Cmd Msg)
 init flags url key =
     let
-        decoded =
-            Decode.decodeValue decodeModel flags
-            |> Result.toMaybe
-            |> Maybe.withDefault Model.init
+        decoded = Model.decodeOrInit flags url key
         cmd = Bandcamp.initCmd decoded.bandcamp
             |> Cmd.map Msg.BandcampMsg
     in
@@ -104,7 +107,35 @@ init flags url key =
 
 ensureUnique = List.Extra.uniqueBy .path
 
-update : Msg -> Model -> (Model, Cmd Msg)
+hooks msg (model, cmd) =
+    let
+        (pm, pc) = persistHook msg model
+        im = importHook msg pm
+    in
+        (im, Cmd.batch [pc, cmd])
+
+persistHook msg model =
+    (model, persist model)
+
+importHook msg model =
+    case msg of
+        -- add new files from bandcamp
+        BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) ->
+            let
+                (tracks, seed) =
+                    Track.addBandcamp
+                        model.seed
+                        scanResult
+                        model.tracks
+                        |> Debug.log "t"
+            in
+            {model | tracks = tracks, seed = seed}
+        _ -> model
+
+{-
+Use writer monad that also returns a new seed
+-}
+update : Msg -> Model.Model -> (Model.Model, Cmd Msg)
 update msg model =
   case msg of
     BandcampMsg bmsg ->
@@ -114,13 +145,8 @@ update msg model =
         in
             (mdl, Cmd.batch [persist mdl, Cmd.map Msg.BandcampMsg cmd])
     TabClicked newTab -> ({model | tab = newTab}, Cmd.none)
-    Paused ->
-        ({model | playing = False}, Cmd.none)
-    Play fileRef ->
-        let
-            mdl = {model | playback = Just fileRef, playing = True}
-        in
-            (mdl, persist mdl)
+    PlayerMsg msg_ ->
+        ({model | player = Player.update msg_ model.player}, Cmd.none)
     DropZoneMsg (DropZone.Drop files) ->
         let
             newAudioFiles =
@@ -135,10 +161,12 @@ update msg model =
                         DroppedFile _ -> Nothing
                         DroppedDirectory dirPath -> Just dirPath
                     )
+            (tracks, seed) = Track.addLocal model.seed newAudioFiles model.tracks
 
             mdl = { model -- Make sure to update the DropZone model
                   | dropZone = DropZone.update (DropZone.Drop files) model.dropZone
-                  , files = model.files ++ newAudioFiles |> ensureUnique
+                  , tracks = tracks
+                  , seed = seed
                   }
         in
         (mdl, Cmd.batch [persist mdl, FileSystem.scan_directories newDirectories ])
@@ -147,19 +175,14 @@ update msg model =
         -- but you still need to hand it to DropZone.update so
         -- the DropZone model stays consistent
         ({ model | dropZone = DropZone.update a model.dropZone }, Cmd.none)
-    Saved -> (model, Cmd.none)
     FilesRead res ->
         case res of
             Err e -> (model, Cmd.none)
             Ok newAudioFiles ->
-                let
-                    mdl =
-                        { model
-                        | files = model.files ++ newAudioFiles |> ensureUnique
-                        }
-                in
-                    (mdl, persist mdl)
-
+                Debug.todo "yay"
+                -- (mdl, persist mdl)
+    UrlRequested -> (model, Cmd.none)
+    UrlChanged -> (model, Cmd.none)
 
 -- VIEW
 
@@ -179,7 +202,8 @@ view_ model =
         header =
             Element.row
                 [Element.Background.color Color.playerGrey, Element.width Element.fill]
-                [playback model]
+                [Player.view (MusicBrowser.resolveTrack model) model.player]
+                |> Element.map PlayerMsg
 
         dropArea =
             Element.el
@@ -194,62 +218,6 @@ view_ model =
             [header
             , MusicBrowser.view model
             ]
-
-playback : Model -> Element.Element Msg
-playback model =
-    let
-        playbackBarAttribs =
-            [ Element.height <| Element.px 54
-            , Element.spacing 5
-            , Element.width Element.fill
-            , Element.Background.color <| Color.playerGrey
-            ]
-        marqueeStyles =
-            [ draggable
-            , Element.height Element.fill
-            , Element.width (Element.fillPortion 1 |> Element.minimum 150)
-            , Element.Font.color Color.blue
-            ]
-        playingMarquee txt =
-            Element.el
-                marqueeStyles
-                <| Element.el [Element.centerY] <| Element.html (Html.node "marquee" [] [Html.text txt])
-        draggable = Element.htmlAttribute <| Html.Attributes.style "-webkit-app-region" "drag"
-    in
-        Element.row
-         playbackBarAttribs
-            <| case model.playback of
-                Just f ->
-                     [ playingMarquee f.name
-                     , Element.el
-                        [Element.width (Element.fillPortion 3 |> Element.minimum 150)]
-                        (player model f)
-                     ]
-                Nothing ->
-                    [playingMarquee "not playing"]
-
-player : Model -> FileSystem.FileRef -> Element.Element Msg.Msg
-player model {path, name} =
-    let
-        fileUri =
-            "file://" ++ (String.split "/" path |> List.map Url.percentEncode |> String.join "/")
-        audioSrc = Html.Attributes.attribute "src"  fileUri
-        attribs =
-            [ Html.Attributes.autoplay False
-            , audioSrc
-            , Html.Attributes.type_ "audio/wav"
-            , Html.Attributes.controls True
-            , Html.Attributes.style "width" "auto"
-            , Html.Attributes.attribute "playing" "true"
-            ]
-        a = Html.node
-            "audio-player"
-            attribs
-            []
-            |> Element.html
-            |> Element.el [Element.width Element.fill]
-    in
-        a
 
 
 

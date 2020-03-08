@@ -13,13 +13,13 @@ const BANDCAMP_DOWNLOAD_DIR = "bandcamp"
 
 // fetch the asset URl from bandcamp
 const get_asset_url = async (cookie, encode_url) => {
-      const {url} =
+      const res =
         await fetch(encode_url,
                 { method: 'GET'
                 , headers: {Cookie: cookie}
                 }
             )
-      return url
+      return res
     }
 
 const setupPorts = app => {
@@ -35,23 +35,32 @@ const setupPorts = app => {
         .subscribe(scan_started(app))
 }
 
-const formatter_url_requested = app => async ({cookie, purchase_id, download_page_url}) =>
+const formatter_url_requested = app => async ({cookie, item_id, download_page_url}) =>
     {
         // has it been downloaded before?
-        if (already_downloaded(purchase_id)) {
-            app.ports.bandcamp_downloader_in_download_completed.send(purchase_id)
+        if (already_downloaded(item_id)) {
+            app.ports.bandcamp_downloader_in_download_completed.send(item_id)
             return
         }
         const data = await fetchAndSlice(cookie, download_page_url)
+        console.log(data)
         const mp3Download = data.download_items[0].downloads['mp3-v0']
         const formatter_url = mp3Download.url
-        app.ports.bandcamp_downloader_in_formatter_url_retrieved.send([purchase_id, formatter_url])
+        const msg = [item_id, formatter_url]
+        console.log(msg)
+        app.ports.bandcamp_downloader_in_formatter_url_retrieved.send(msg)
     }
 
-const asset_url_requested = app => async ({cookie, purchase_id, formatter_url}) =>
+const asset_url_requested = app => async ({cookie, item_id, formatter_url}) =>
     {
-        const asset_url = await get_asset_url(cookie, formatter_url)
-        app.ports.bandcamp_downloader_in_asset_url_retrieved.send([purchase_id, asset_url])
+        console.log('formatter in curl', formatter_url)
+        const {url, redirected} = await get_asset_url(cookie, formatter_url)
+        console.log('asset_url', url)
+        if (redirected) {
+            app.ports.bandcamp_in_refresh_required(true)
+        } else {
+            app.ports.bandcamp_downloader_in_asset_url_retrieved.send([item_id, url])
+        }
     }
 
 const download_initiated = app => params =>
@@ -62,17 +71,17 @@ const download_initiated = app => params =>
         }
     )
 
-const unzip_initiated = app => purchase_id =>
-    unzip(purchase_id
+const unzip_initiated = app => item_id =>
+    unzip(item_id
         , app.ports.bandcamp_downloader_in_files_extracted.send
         )
 
-const scan_started = app => purchase_id =>
+const scan_started = app => item_id =>
     {
-        const target_dir = unzipped_path(purchase_id)
+        const target_dir = unzipped_path(item_id)
         const files = FileSystem.scanDir(target_dir)
         app.ports.bandcamp_downloader_in_files_scanned
-            .send([purchase_id, files])
+            .send([item_id, files])
     }
 
 
@@ -80,63 +89,63 @@ const scan_started = app => purchase_id =>
 if (!fs.existsSync(BANDCAMP_DOWNLOAD_DIR)){
     fs.mkdirSync(BANDCAMP_DOWNLOAD_DIR);
 }
-const tempfile_path = purchase_id =>
+const tempfile_path = item_id =>
         path.join(
               rootPath
             , BANDCAMP_DOWNLOAD_DIR
-            , `${purchase_id}.downloading.zip`
+            , `${item_id}.downloading.zip`
             )
 
-const complete_file_path = purchase_id =>
+const complete_file_path = item_id =>
         path.join(
             BANDCAMP_DOWNLOAD_DIR
-            , `${purchase_id}.zip`
+            , `${item_id}.zip`
             )
 
-const unzipped_path = purchase_id =>
+const unzipped_path = item_id =>
         path.join(
               rootPath
             , BANDCAMP_DOWNLOAD_DIR
-            , `${purchase_id}`
+            , `${item_id}`
             )
 
-const already_downloaded = purchase_id =>
-    fs.existsSync(complete_file_path(purchase_id))
+const already_downloaded = item_id =>
+    fs.existsSync(complete_file_path(item_id))
 
-const with_progress = ({asset_url, purchase_id}, {on_complete, on_progress}) => {
+const with_progress = ({asset_url, item_id}, {on_complete, on_progress}) => {
     var has_error = false
     // determine where the file needs to be downloaded to
-    const tempfile = tempfile_path(purchase_id)
+    const tempfile = tempfile_path(item_id)
     // clean unfinished downloads
     fs.existsSync(tempfile) && fs.unlinkSync(tempfile)
     // start download
     progress(request(asset_url))
      .on('progress', state => {
           const percent = Math.round((state.percent || 0) * 100)
-          on_progress([purchase_id, percent])
+          on_progress([item_id, percent])
       })
       .on('error', err => {console.log(err); has_error = true})
       .on('end', () => {
           // remove `.downloading` suffix
           if (!has_error) {
-              fs.renameSync( tempfile_path(purchase_id) , complete_file_path(purchase_id))
-              on_complete(purchase_id)
+              fs.renameSync( tempfile_path(item_id) , complete_file_path(item_id))
+              on_complete(item_id)
           }
       })
       .pipe(createWriteStream(tempfile))
 }
 
-const unzip = (purchase_id, on_complete) => {
-    const target = unzipped_path(purchase_id)
+const unzip = (item_id, on_complete) => {
+    const target = unzipped_path(item_id)
     rimraf(target).catch(() => null).then(() => {
-        const unzipper = new DecompressZip(complete_file_path(purchase_id))
+        const unzipper = new DecompressZip(complete_file_path(item_id))
         unzipper.on('error', function (err) {
             console.log(err)
             console.log('Caught an error');
         });
          
         unzipper.on('extract', function (log) {
-            on_complete(purchase_id)
+            on_complete(item_id)
         });
          
         unzipper.on('progress', function (fileIndex, fileCount) {

@@ -27,10 +27,25 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 })
 
+// makeSeed : () => string
+const makeSeed = () => {
+
+    const generated_seed = new Uint32Array(10);
+    window.crypto.getRandomValues(generated_seed);
+    const [seed, ...seed_extension] = generated_seed
+    return {seed, seed_extension}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+
     // init and connect persistence layer
-    const flags = JSON.parse(Storage.restore())
+    const seed = makeSeed()
+    console.log(seed)
+    const restored = JSON.parse(Storage.restore())
+    const flags = {restored, ...seed}
     const app = Elm.Main.init({flags})
+    console.log(flags)
+    console.log(flags.restored)
     app.ports.persist_.subscribe(Storage.persist)
     // connect file system access
     app.ports.scan_directories.subscribe(FileSystem.import_(app))

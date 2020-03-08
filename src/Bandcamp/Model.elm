@@ -5,31 +5,25 @@ import Json.Encode as Encode
 import RemoteData
 import Time
 import FileSystem
+import Bandcamp.Id
 
 initDownload = RequestingAssetUrl
 
-get_download (PurchaseId item_id) model =
-    Dict.get item_id model
-
 waitingDownload = Downloading Waiting
+
 initModel : Model
 initModel =
     Model
         RemoteData.NotAsked
         Nothing
-        Dict.empty
+        Bandcamp.Id.emptyDict_
 
-type alias PurchaseId_encoded = Int
-
-wrapPurchaseId : (PurchaseId_encoded, a) -> (PurchaseId, a)
-wrapPurchaseId = Tuple.mapFirst PurchaseId
 
 type alias Date = Time.Posix
 
 encodeDate = Time.posixToMillis >> Encode.int
 decodeDate = Decode.int |> Decode.map Time.millisToPosix
 
-type alias Track = {title : String, number : Int}
 type alias RemoteLibrary =
     RemoteData.RemoteData String Library
 
@@ -43,7 +37,8 @@ encodeRemoteLibrary =
     RemoteData.toMaybe
     >> encodeMaybeLibrary
 
--- [decgen-start]
+-- [generator-start]
+
 type alias MaybeLibrary = Maybe Library
 type alias Model =
     { library : RemoteLibrary
@@ -52,8 +47,8 @@ type alias Model =
     }
 
 type alias Library =
-    { download_urls : Dict.Dict String String
-    , purchases : Dict.Dict String Purchase
+    { download_urls : Bandcamp.Id.Dict_ String
+    , purchases : Bandcamp.Id.Dict_ Purchase
     }
 
 type alias LoadedModel =
@@ -64,14 +59,11 @@ type alias Purchase =
     { title: String
     , artist : String
     , artwork: Int
-    , item_id : PurchaseId
+    , item_id : Bandcamp.Id.Id
     }
 type Cookie = Cookie String
 
-type alias Downloads =
-    Dict.Dict
-        Int
-        Download
+type alias Downloads = Bandcamp.Id.Dict_ Download
 
 type Download =
     RequestingFormatUrl
@@ -83,35 +75,14 @@ type Download =
     | Error
 
 type DownloadStatus = Waiting | InProgress DownloadProgress
-{-| @@TODO - make this an opaque type -}
-type PurchaseId = PurchaseId Int
 
 {-| in pct -}
 type alias DownloadProgress = Int
 
--- [decgen-generated-start] -- DO NOT MODIFY or remove this line
+
+-- [generator-generated-start] -- DO NOT MODIFY or remove this line
 decodeCookie =
    Decode.map Cookie Decode.string
-
-decodeDictStringPurchase =
-   let
-      decodeDictStringPurchaseTuple =
-         Decode.map2
-            (\a1 a2 -> (a1, a2))
-               ( Decode.field "A1" Decode.string )
-               ( Decode.field "A2" decodePurchase )
-   in
-      Decode.map Dict.fromList (Decode.list decodeDictStringPurchaseTuple)
-
-decodeDictStringString =
-   let
-      decodeDictStringStringTuple =
-         Decode.map2
-            (\a1 a2 -> (a1, a2))
-               ( Decode.field "A1" Decode.string )
-               ( Decode.field "A2" Decode.string )
-   in
-      Decode.map Dict.fromList (Decode.list decodeDictStringStringTuple)
 
 decodeDownload =
    Decode.field "Constructor" Decode.string |> Decode.andThen decodeDownloadHelp
@@ -157,20 +128,13 @@ decodeDownloadStatusHelp constructor =
          Decode.fail <| "Unknown constructor for type DownloadStatus: " ++ other
 
 decodeDownloads =
-   let
-      decodeDownloadsTuple =
-         Decode.map2
-            (\a1 a2 -> (a1, a2))
-               ( Decode.field "A1" Decode.int )
-               ( Decode.field "A2" decodeDownload )
-   in
-      Decode.map Dict.fromList (Decode.list decodeDownloadsTuple)
+   Bandcamp.Id.decodeDict_ decodeDownload
 
 decodeLibrary =
    Decode.map2
       Library
-         ( Decode.field "download_urls" decodeDictStringString )
-         ( Decode.field "purchases" decodeDictStringPurchase )
+         ( Decode.field "download_urls" ((Bandcamp.Id.decodeDict_ Decode.string)) )
+         ( Decode.field "purchases" ((Bandcamp.Id.decodeDict_ decodePurchase)) )
 
 decodeLoadedModel =
    Decode.map2
@@ -194,31 +158,10 @@ decodePurchase =
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
          ( Decode.field "artwork" Decode.int )
-         ( Decode.field "item_id" decodePurchaseId )
-
-decodePurchaseId =
-   Decode.map PurchaseId Decode.int
+         ( Decode.field "item_id" Bandcamp.Id.decodeId )
 
 encodeCookie (Cookie a1) =
    Encode.string a1
-
-encodeDictStringPurchase a =
-   let
-      encodeDictStringPurchaseTuple (a1,a2) =
-         Encode.object
-            [ ("A1", Encode.string a1)
-            , ("A2", encodePurchase a2) ]
-   in
-      (Encode.list encodeDictStringPurchaseTuple) (Dict.toList a)
-
-encodeDictStringString a =
-   let
-      encodeDictStringStringTuple (a1,a2) =
-         Encode.object
-            [ ("A1", Encode.string a1)
-            , ("A2", Encode.string a2) ]
-   in
-      (Encode.list encodeDictStringStringTuple) (Dict.toList a)
 
 encodeDownload a =
    case a of
@@ -246,7 +189,7 @@ encodeDownload a =
       Completed a1->
          Encode.object
             [ ("Constructor", Encode.string "Completed")
-            , ("A1", (Encode.list FileSystem.encodeFileRef) a1)
+            , ("A1", Encode.list FileSystem.encodeFileRef a1)
             ]
       Error ->
          Encode.object
@@ -269,18 +212,12 @@ encodeDownloadStatus a =
             ]
 
 encodeDownloads a =
-   let
-      encodeDownloadsTuple (a1,a2) =
-         Encode.object
-            [ ("A1", Encode.int a1)
-            , ("A2", encodeDownload a2) ]
-   in
-      (Encode.list encodeDownloadsTuple) (Dict.toList a)
+   Bandcamp.Id.encodeDict_ encodeDownload a
 
 encodeLibrary a =
    Encode.object
-      [ ("download_urls", encodeDictStringString a.download_urls)
-      , ("purchases", encodeDictStringPurchase a.purchases)
+      [ ("download_urls", ((Bandcamp.Id.encodeDict_ Encode.string)) a.download_urls)
+      , ("purchases", ((Bandcamp.Id.encodeDict_ encodePurchase)) a.purchases)
       ]
 
 encodeLoadedModel a =
@@ -315,16 +252,6 @@ encodePurchase a =
       [ ("title", Encode.string a.title)
       , ("artist", Encode.string a.artist)
       , ("artwork", Encode.int a.artwork)
-      , ("item_id", encodePurchaseId a.item_id)
-      ]
-
-encodePurchaseId (PurchaseId a1) =
-   Encode.int a1 
--- [decgen-end]
-
-
-
-
-
-
-
+      , ("item_id", Bandcamp.Id.encodeId a.item_id)
+      ] 
+-- [generator-end]

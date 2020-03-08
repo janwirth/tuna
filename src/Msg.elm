@@ -6,6 +6,9 @@ import Bandcamp
 import RemoteData
 import Json.Decode as Decode
 import FileSystem
+import Player
+import Url
+import Browser
 
 -- UPDATE
 
@@ -13,10 +16,11 @@ import FileSystem
 type Msg
   = DropZoneMsg (DropZone.DropZoneMessage DropPayload)
   | FilesRead (Result Decode.Error (List FileSystem.FileRef))
-  | Play FileSystem.FileRef
-  | Saved
-  | Paused
+  | PlayerMsg Player.Msg
 
   | BandcampMsg Bandcamp.Msg
 
   | TabClicked Model.Tab
+
+  | UrlRequested
+  | UrlChanged

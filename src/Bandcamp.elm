@@ -14,6 +14,8 @@ import Element.Background
 import Color
 import Bandcamp.Downloader
 import Bandcamp.Model
+import FileSystem
+import Bandcamp.Id
 
 subscriptions : Bandcamp.Model.Model -> Sub Msg
 subscriptions model =
@@ -37,6 +39,16 @@ type Msg =
   | DataRetrieved (Result Decode.Error Bandcamp.Model.Library)
   | DownloaderMsg Bandcamp.Downloader.Msg
 
+getAllFiles : Bandcamp.Model.Model -> List FileSystem.FileRef
+getAllFiles {downloads} =
+    Debug.todo "a"
+--    Dict.toList downloads
+--    |> List.map (\(_, d) -> case d of
+--            Bandcamp.Model.Completed files -> files
+--            _ -> []
+--        )
+--    |> List.concat
+
 browser : Bandcamp.Model.Model -> Element.Element Msg
 browser model =
     let
@@ -45,6 +57,7 @@ browser model =
                 [Element.padding 50, Element.Font.center]
                 [Element.text "Loading..."]
 
+        viewLib : Bandcamp.Model.Library -> Element.Element Msg
         viewLib lib =
             let
                 attribs =
@@ -56,7 +69,7 @@ browser model =
                     , Element.padding 50
                     ]
                 content =
-                    Dict.toList lib.purchases
+                    Bandcamp.Id.dictToList lib.purchases
                     |> List.map (viewPurchase model.downloads lib)
             in
                 Element.wrappedRow attribs content
@@ -70,7 +83,8 @@ browser model =
             RemoteData.Success library ->
                 viewLib library
 
-viewPurchase : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> (String, Bandcamp.Model.Purchase) -> Element.Element Msg
+
+viewPurchase : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> (Bandcamp.Id.Id, Bandcamp.Model.Purchase) -> Element.Element Msg
 viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
     let
         imgSrc =
@@ -88,7 +102,7 @@ viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
             Element.image
                 [Element.height (Element.px 300), Element.width (Element.px 300)]
                 {src = imgSrc, description = title}
-        viewDownloadOptions = case Dict.get (Bandcamp.Downloader.to_download_id item_id) library.download_urls of
+        viewDownloadOptions = case Bandcamp.Id.getBy item_id library.download_urls of
             Just u ->
                 Bandcamp.Downloader.viewDownloadButton downloads item_id
             Nothing ->
@@ -128,8 +142,24 @@ extractModelFromBlob =
                 (Decode.field "item_title" Decode.string)
                 (Decode.field "band_name" Decode.string)
                 (Decode.field "item_art_id" Decode.int)
-                (Decode.field "sale_item_id" Decode.int |> Decode.map Bandcamp.Model.PurchaseId)
+                (Decode.field "sale_item_id" Decode.int |> Decode.map Bandcamp.Id.fromPort)
 
+        item_id_as_key : Dict.Dict String Bandcamp.Model.Purchase -> Bandcamp.Id.Dict_ Bandcamp.Model.Purchase
+        item_id_as_key =
+            Dict.toList
+            >> List.map (\(_, item) -> (Bandcamp.Id.toPort item.item_id, item))
+            >> Dict.fromList
+            >> Bandcamp.Id.wrapDict_
+
+        purchase_id_to_item_id : Dict.Dict String String -> Bandcamp.Id.Dict_ String
+        purchase_id_to_item_id =
+            Dict.toList
+            >> List.filterMap (\(id, download) -> case Bandcamp.Id.parsePurchaseId id of
+                    Just item_id -> Just (Bandcamp.Id.toPort item_id, download)
+                    Nothing -> Nothing
+                )
+            >> Dict.fromList
+            >> Bandcamp.Id.wrapDict_
         extractDownloadUrls : Decode.Decoder (Dict.Dict String String)
         extractDownloadUrls =
             Decode.at
@@ -138,8 +168,8 @@ extractModelFromBlob =
     in
         Decode.map2
             Bandcamp.Model.Library
-            extractDownloadUrls
-            extractPurchases
+            (extractDownloadUrls |> Decode.map purchase_id_to_item_id)
+            (extractPurchases  |> Decode.map item_id_as_key )
 
 
 {-| Launch bandcamp/login inside an iframe and extract the cookie when the user was authed successfully -}
@@ -179,3 +209,4 @@ update msg model =
                 ( mdl
                 , Cmd.map DownloaderMsg cmd
                 )
+

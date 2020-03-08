@@ -39,6 +39,8 @@ function register () {
             if (this.playing) {
                 this.audio.play()
             }
+            this.audio.addEventListener('play', ev => this.dispatchEvent(new Event('play')))
+            this.audio.addEventListener('pause', ev => this.dispatchEvent(new Event(ev.target.ended ? 'end' : 'pause')))
         }
 
   // Monitor the 'name' attribute for changes.

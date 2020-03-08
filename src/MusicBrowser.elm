@@ -1,4 +1,4 @@
-module MusicBrowser exposing (view)
+module MusicBrowser exposing (view, resolveTrack)
 
 import Element
 import Element.Background
@@ -12,20 +12,11 @@ import Color
 import Bandcamp
 import Element.Input
 import Html.Attributes
-
-playlists : Model.Model -> Element.Element Msg.Msg
-playlists model =
-    let
-        attribs = [Element.clipX, Element.width <| Element.px 300, Element.height Element.fill, Element.Background.color Color.offWhite]
-
-        viewLists =
-            List.map
-                (viewPlaylist model)
-                model.playlists
-    in
-        Element.column
-            attribs
-            viewLists
+import Track
+import FileSystem
+import Bandcamp.Model
+import Bandcamp.Id
+import Player
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =
@@ -36,17 +27,20 @@ view model =
 
         bcBrowser = Bandcamp.browser
                 model.bandcamp
-
         filesList =
-            case List.isEmpty model.files of
+            case Track.noTracks model.tracks of
                 True ->
                     Element.paragraph
                         [Element.Font.center, Element.padding 50]
                             [Element.text "Drop an audio file here to add it to your library or use the bandcamp tab."]
                 False ->
-                    Element.column
-                        ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
-                        (List.map (viewFileRef model) model.files)
+                    let
+                        currentlyViewedTracks = Track.tracksToList model.tracks
+                    in
+
+                        Element.column
+                            ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
+                            (List.map (viewTrack model) currentlyViewedTracks)
         content = case model.tab of
             LocalTab -> localBrowser
             BandcampTab ->
@@ -57,6 +51,68 @@ view model =
             [Element.width Element.fill, Element.height Element.fill, Element.clipY, Element.scrollbarY]
             [tabs model, content]
 
+viewTrack : Model.Model -> Track.Track -> Element.Element Msg.Msg
+viewTrack model track =
+    case resolveSource model (Track.source track) of
+        Ok (meta, fileRef) -> viewTrackHelp model (Track.getId track) fileRef
+        Err err -> Element.text "Track not playable"
+
+
+
+viewTrackHelp : Model.Model -> Track.Id -> FileSystem.FileRef -> Element.Element Msg.Msg
+viewTrackHelp model id fileRef =
+    let
+        attribs = [Element.Events.onClick (Msg.PlayerMsg (Player.newQueue id model.tracks))
+            , Element.padding 10
+            , Element.spacing 10
+            , Element.width Element.fill
+            , Element.mouseOver [Element.Background.color Color.blueTransparent]
+            , Element.pointer
+            ]
+
+        playingMarkerBackground =
+            if Player.getCurrent model.player == Just id
+                then Element.Background.color Color.blue
+                else Element.Background.color Color.white
+        playingMarker =
+            Element.el
+                [ Element.width <| Element.px 8
+                , Element.height <| Element.px 8
+                , Element.Border.rounded 4
+                , Element.moveUp 1 -- baseline correction
+                , Element.centerY
+                , playingMarkerBackground
+                ]
+                Element.none
+        content =
+            [ playingMarker
+            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text fileRef.name]
+            -- , Element.el [] (Element.text fileRef.path)
+            ]
+    in
+        Element.row attribs content
+
+resolveTrack : Model.Model -> Track.Id -> Result String (Track.Meta, FileSystem.FileRef)
+resolveTrack model id =
+    case Track.getById id model.tracks |> Maybe.map Track.source of
+        Just source -> resolveSource model source
+        Nothing -> Err "Track not found"
+
+resolveSource : Model.Model -> Track.TrackSource -> Result String (Track.Meta, FileSystem.FileRef)
+resolveSource {bandcamp, tracks} source =
+    case source of
+        (Track.BandcampPurchase purchase_id track_number) ->
+            case Bandcamp.Id.getBy purchase_id bandcamp.downloads of
+                Just download -> case download of
+                    Bandcamp.Model.Completed fileRefs ->
+                        case List.Extra.getAt track_number fileRefs of
+                            Just fileRef ->
+                                Ok ((), fileRef)
+                            Nothing ->
+                                Err "Track not found in downloads"
+                    _ -> Err "Download not completed"
+                Nothing -> Err "No Download"
+        (Track.LocalFile s) -> Ok ((), s)
 
 viewTab : Model.Model -> String -> Model.Tab -> Element.Element Msg.Msg
 viewTab model label tab =
@@ -88,68 +144,10 @@ tabs model = Element.row [Element.spacing 10, Element.centerX, Element.padding 1
       , viewTab model "Bandcamp" BandcampTab
     ]
 
-    -- <video controls="" autoplay="" name="media"><source src="file:///home/jan/Downloads/Various%20Artists%20-%204%20To%20The%20Floor%20Volume%2001/Ben%20Westbeech%20-%204%20To%20The%20Floor%20Volume%2001%20-%2039%20Falling%20(Deetron%20Paradise%20Vocal%20Remix).wav" type="audio/wav"></video>
-viewFileRef model fileRef =
-    let
-        attribs = [Element.Events.onClick (Msg.Play fileRef)
-            , Element.padding 10
-            , Element.spacing 10
-            , Element.width Element.fill
-            , Element.mouseOver [Element.Background.color Color.blueTransparent]
-            , Element.pointer
-            ]
+type alias TrackToView =
+    { id : Track.Id
+    , name : String
+    , file : Maybe FileSystem.Path
+    }
 
-        playingMarkerBackground =
-            if model.playback == Just fileRef
-                then Element.Background.color Color.blue
-                else Element.Background.color Color.white
-        playingMarker =
-            Element.el
-                [ Element.width <| Element.px 8
-                , Element.height <| Element.px 8
-                , Element.Border.rounded 4
-                , Element.moveUp 1 -- baseline correction
-                , Element.centerY
-                , playingMarkerBackground
-                ]
-                Element.none
-        content =
-            [ playingMarker
-            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text fileRef.name]
-            -- , Element.el [] (Element.text fileRef.path)
-            ]
-    in
-        Element.row attribs content
-
-viewPlaylist model name =
-    let
-        attribs = [-- Element.Events.onClick (Play fileRef)
-            Element.padding 15
-            , Element.spacing 15
-            , Element.width Element.fill
-            , Element.mouseOver [Element.Background.color Color.blueTransparent]
-            , Element.pointer
-            ]
-        -- highlight curerntly selected playlist
-        styleBackground =
-            if model.activePlaylist == Just name
-                then Element.Background.color Color.blue
-                else Element.Background.color Color.white
-        playingMarker =
-            Element.el
-                [ Element.width <| Element.px 8
-                , Element.height <| Element.px 8
-                , Element.Border.rounded 4
-                , Element.moveUp 1 -- baseline correction
-                , Element.centerY
-                , styleBackground
-                ]
-                Element.none
-        content =
-            [ playingMarker
-            , Element.text name
-            -- , Element.el [] (Element.text fileRef.path)
-            ]
-    in
-        Element.row attribs content
-
+type alias Annotation = String

@@ -21,8 +21,8 @@ Given a music-collecting power-user that appreciates simplicity.
 - [x] In order to play some music I want to drop it from my file browser into the library.
 - [x] In order to get an overview I want to list my music
 - [x] In order to easily add a lot of music I want to drop entire directories in my library
-- [ ] In order to get play more music I want to connect to bandcamp
-- [ ] In order to play music for a longer time I want the next track to play after the current one ends
+- [x] In order to get play more music I want to connect to bandcamp
+- [x] In order to play music for a longer time I want the next track to play after the current one ends
     - playing a track creates a queue according to the current view (sorting / filtering etc.)
 - [ ] In order to skip tracks I want next/prev buttons
 - [ ] In order to find tracks by genre or mood I want to add tags to my music
@@ -44,6 +44,7 @@ Given a music-collecting power-user that appreciates simplicity.
     - 'working well together' tool
     - or both?
 - [ ] In order to prepare set lists including non-digital music, I want to track vinyl (ang CD?) releases.
+- [ ] In order to have a more care-free experience I can opt into fully managed mode
 
 ## Design inspiration
 - waves: https://codepen.io/Qurel/pen/ZEGXomr
