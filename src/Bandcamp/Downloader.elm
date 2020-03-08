@@ -17,6 +17,7 @@ import Json.Encode as Encode
 import RemoteData
 import Bandcamp.Model
 import FileSystem
+import Element.Border
 
 
 subscriptions : Bandcamp.Model.Downloads -> Sub Msg
@@ -26,10 +27,12 @@ subscriptions model =
             (Bandcamp.Model.wrapPurchaseId >> FormatterUrlRetrieved)
       , bandcamp_downloader_in_asset_url_retrieved
             (Bandcamp.Model.wrapPurchaseId >> AssetUrlRetrieved)
-      , bandcamp_downloader_in_progressed
+      , bandcamp_downloader_in_download_progressed
             (Bandcamp.Model.wrapPurchaseId >> DownloadProgressed)
-      , bandcamp_downloader_in_completed
+      , bandcamp_downloader_in_download_completed
             (Bandcamp.Model.PurchaseId >> DownloadCompleted)
+      , bandcamp_downloader_in_files_extracted
+            (Bandcamp.Model.PurchaseId >> FilesExtracted)
       , bandcamp_downloader_in_files_scanned
             (Bandcamp.Model.wrapPurchaseId >> FilesScanned)
     ]
@@ -39,8 +42,9 @@ type alias Token = {cookie : String, purchase_id: Int}
 -- out ports
 port bandcamp_downloader_out_formatter_url_requested : {cookie: String, purchase_id: Int, download_page_url: String} -> Cmd msg
 port bandcamp_downloader_out_asset_url_requested : {cookie: String, purchase_id: Int, formatter_url: String} -> Cmd msg
-port bandcamp_downloader_out_download_initiated : {cookie: String, purchase_id: Int, asset_url: String} -> Cmd msg
-port bandcamp_downloader_out_scan_started : {cookie: String, purchase_id: Int} -> Cmd msg
+port bandcamp_downloader_out_download_initiated : {purchase_id: Int, asset_url: String} -> Cmd msg
+port bandcamp_downloader_out_unzip_initiated : Int -> Cmd msg
+port bandcamp_downloader_out_scan_started : Int -> Cmd msg
 
 -- in ports
 port bandcamp_downloader_in_formatter_url_retrieved
@@ -51,11 +55,15 @@ port bandcamp_downloader_in_asset_url_retrieved
     : ((Bandcamp.Model.PurchaseId_encoded, String) -> msg)
     -> Sub msg
 
-port bandcamp_downloader_in_progressed
+port bandcamp_downloader_in_download_progressed
     : ((Bandcamp.Model.PurchaseId_encoded, Bandcamp.Model.DownloadProgress) -> msg)
     -> Sub msg
 
-port bandcamp_downloader_in_completed
+port bandcamp_downloader_in_download_completed
+    : (Bandcamp.Model.PurchaseId_encoded -> msg)
+    -> Sub msg
+
+port bandcamp_downloader_in_files_extracted
     : (Bandcamp.Model.PurchaseId_encoded -> msg)
     -> Sub msg
 
@@ -65,10 +73,12 @@ port bandcamp_downloader_in_files_scanned
 
 type Msg =
     DownloadButtonClicked Bandcamp.Model.PurchaseId
+  | ClearButtonClicked Bandcamp.Model.PurchaseId
   | FormatterUrlRetrieved (Bandcamp.Model.PurchaseId, String)
   | AssetUrlRetrieved (Bandcamp.Model.PurchaseId, String)
   | DownloadProgressed (Bandcamp.Model.PurchaseId, Bandcamp.Model.DownloadProgress)
   | DownloadCompleted Bandcamp.Model.PurchaseId
+  | FilesExtracted Bandcamp.Model.PurchaseId
   | FilesScanned (Bandcamp.Model.PurchaseId, List FileSystem.FileRef)
 
 
@@ -78,6 +88,10 @@ update msg model =
         Nothing -> (model, Cmd.none)
         Just (Bandcamp.Model.Cookie cookie) ->
             case msg of
+                ClearButtonClicked (Bandcamp.Model.PurchaseId purchase_id) ->
+                        ({ model
+                        | downloads = Dict.remove purchase_id model.downloads
+                        }, Cmd.none)
                 DownloadButtonClicked id ->
                     let
                         (Bandcamp.Model.PurchaseId purchase_id) = id
@@ -129,8 +143,7 @@ update msg model =
                             { model | downloads = newDownloads}
                         cmd =
                             bandcamp_downloader_out_download_initiated
-                                { cookie = cookie
-                                , purchase_id = purchase_id
+                                { purchase_id = purchase_id
                                 , asset_url = asset_url
                                 }
                     in
@@ -148,19 +161,19 @@ update msg model =
                         (mdl , Cmd.none)
                 DownloadCompleted (Bandcamp.Model.PurchaseId purchase_id) ->
                     ({ model | downloads = Dict.insert purchase_id Bandcamp.Model.Unzipping model.downloads}
-                    , bandcamp_downloader_out_scan_started
-                                { cookie = cookie
-                                , purchase_id = purchase_id
-                                }
+                    , bandcamp_downloader_out_unzip_initiated
+                                purchase_id
+                    )
+
+                FilesExtracted (Bandcamp.Model.PurchaseId purchase_id) ->
+                    ({ model | downloads = Dict.insert purchase_id Bandcamp.Model.Unzipping model.downloads}
+                    , bandcamp_downloader_out_scan_started purchase_id
                     )
                 FilesScanned (Bandcamp.Model.PurchaseId purchase_id, files) ->
                     ({ model
                     | downloads = Dict.insert purchase_id (Bandcamp.Model.Completed files) model.downloads
                     }
-                    , bandcamp_downloader_out_scan_started
-                                { cookie = cookie
-                                , purchase_id = purchase_id
-                                }
+                    , Cmd.none
                     )
 
 
@@ -176,14 +189,20 @@ viewDownloadButton model item_id =
     let
         viewButton =
             Element.Input.button
-                [Element.padding 10, Element.Background.color Color.playerGrey]
+                [Element.padding 10, Element.Border.rounded 5, Element.Background.color Color.playerGrey]
                 { label = Element.text "Download"
                 , onPress = Just <| DownloadButtonClicked item_id
+                }
+        clearButton =
+            Element.Input.button
+                [Element.padding 10, Element.Border.rounded 5, Element.Background.color Color.playerGrey]
+                { label = Element.text "Clear"
+                , onPress = Just <| ClearButtonClicked item_id
                 }
     in
         case Bandcamp.Model.get_download item_id model of
             Nothing -> viewButton
-            Just progress -> viewProgress progress
+            Just progress -> Element.column [Element.spacing 5] [clearButton, viewProgress progress]
 
 viewProgress : Bandcamp.Model.Download -> Element.Element msg
 viewProgress p =

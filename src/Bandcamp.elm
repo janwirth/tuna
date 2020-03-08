@@ -24,13 +24,13 @@ subscriptions model =
             |> DataRetrieved
     in
         Sub.batch [
-            bandcamp_library_retrieved captureBandcampLib
+            bandcamp_in_connection_opened captureBandcampLib
           , Bandcamp.Downloader.subscriptions model.downloads
             |> Sub.map DownloaderMsg
         ]
 
-port bandcamp_init_request : String -> Cmd msg
-port bandcamp_library_retrieved : (Decode.Value -> msg) -> Sub msg
+port bandcamp_out_connection_requested : String -> Cmd msg
+port bandcamp_in_connection_opened : (Decode.Value -> msg) -> Sub msg
 
 type Msg =
     CookieRetrieved Bandcamp.Model.Cookie
@@ -111,7 +111,7 @@ initCmd model =
 
 fetchLatestLibrary : String -> Cmd Msg
 fetchLatestLibrary cookie =
-    bandcamp_init_request cookie
+    bandcamp_out_connection_requested cookie
 
 
 
