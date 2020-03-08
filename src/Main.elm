@@ -45,13 +45,6 @@ persist : Model -> Cmd msg
 persist =
     encodeModel >> persist_
 
-hooks : Msg.Msg -> (Model.Model, Cmd Msg.Msg) -> (Model.Model, Cmd Msg.Msg)
-hooks msg (model, cmd) =
-    case msg of
-        Msg.BandcampMsg (Bandcamp.DownloadCompleted purchase_id) ->
-            (model, Cmd.batch [cmd, bandcamp_import purchase_id, persist model])
-        _ -> (model, cmd)
-
 uriDecorder : Decode.Decoder DropPayload
 uriDecorder =
     let
@@ -66,7 +59,7 @@ uriDecorder =
                 isAudio = file |> File.mime |> String.contains "audio"
                 isDir = File.mime file == ""
                 decodeAudioFile =
-                    decodeFileRef
+                    FileSystem.decodeFileRef
                     |> Decode.map (DroppedFile >> Just)
             in
                 case (isAudio, isDir) of
@@ -85,14 +78,13 @@ main : Platform.Program Flags Model Msg
 main =
   Browser.application
       { init = init
-      , update = updateAndHooks
+      , update = update
       , view = view
       , subscriptions = subscriptions
       , onUrlChange = always Paused
       , onUrlRequest = always Paused
       }
 
-updateAndHooks msg = update msg >> hooks msg
 -- MODEL
 
 
@@ -236,7 +228,7 @@ playback model =
                 Nothing ->
                     [playingMarquee "not playing"]
 
-player : Model -> FileRef -> Element.Element Msg.Msg
+player : Model -> FileSystem.FileRef -> Element.Element Msg.Msg
 player model {path, name} =
     let
         fileUri =
