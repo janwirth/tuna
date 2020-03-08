@@ -1,27 +1,32 @@
-# Music Library
-A tool for people who like their own music files.
+# Tuna
+A cross-platform app for music collectors who appreciate working with files.
 
 ## Installation
-For now you have to clone and build it yourself
+For now you will have to clone and build it yourself.
 
 ## Running
 ```sh
 npm i && npm start
 ```
 
-## Design
-For people who like to own their music:
-A lightweight iTunes alternative that syncs your devices and integrates with bandcamp.
+## Concept
+Tuna's goal is to provide a well-rounded experience around collecting music.
+It is for those who appreciate access to files and artwork while saving time.
+In a nutshell, it is (/I am planning to make it) a lightweight iTunes alternative that syncs your devices and integrates with bandcamp.
+Easily add, organize and never lose your music files.
 
 ## User Stories
+Given a music-collecting power-user that appreciates simplicity.
 - [x] In order to listen to music I want to have a player with play / pause button
 - [x] In order to play some music I want to drop it from my file browser into the library.
 - [x] In order to get an overview I want to list my music
 - [x] In order to easily add a lot of music I want to drop entire directories in my library
 - [ ] In order to get play more music I want to connect to bandcamp
 - [ ] In order to play music for a longer time I want the next track to play after the current one ends
+    - playing a track creates a queue according to the current view (sorting / filtering etc.)
 - [ ] In order to skip tracks I want next/prev buttons
 - [ ] In order to find tracks by genre or mood I want to add tags to my music
+    - examples: genre:house:lo-fi genre:dnb:neurofunk mood:chill set:house-party
 - [ ] In order to get a better overview of my music I want to have a table that supports sorting
     - [ ] date added
     - [ ] artist, title, number, album
@@ -38,8 +43,16 @@ A lightweight iTunes alternative that syncs your devices and integrates with ban
     - ordered playlists or
     - 'working well together' tool
     - or both?
+- [ ] In order to prepare set lists including non-digital music, I want to track vinyl (ang CD?) releases.
+
+## Design inspiration
+- waves: https://codepen.io/Qurel/pen/ZEGXomr
+    - could this be used as a visualizer
+- vinyl player: https://dribbble.com/shots/5930806-AR-music-library
+    - maybe a minimial player mode
+    - reminds me of my work with C. Molka at Mercedes-Benz.io.
 
 ## Architecture
+- elm app inside electron with preferably tiny native slave modules
 - bandcamp login lives inside in iframe because it requires a captcha
-- client/server between elm and http server (considering iso-elm)
-- Port functions were not available using `BrowserWindow.webContents`
+    - formerly: http-client-server becasue I did not know about `nodeIntegration: true`
