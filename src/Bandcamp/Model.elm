@@ -19,6 +19,53 @@ initModel =
         Bandcamp.Id.emptyDict_
 
 
+type alias DownloadsSummary = {error: Bool, status: DownloadsSummaryStatus}
+type DownloadsSummaryStatus = SomeLoading Int Int | AllDone
+summarizeDownloads : Downloads -> DownloadsSummary
+summarizeDownloads d =
+    let
+        dls = Bandcamp.Id.dictToList d
+        dlsInProgress =
+            dls
+            |> List.filterMap
+                (\(_, dl) -> case dl of
+                    Downloading (InProgress pct) -> Just pct
+                    Downloading Waiting -> Just 0
+                    _ -> Nothing
+                )
+        avg : List Int -> Int
+        avg l =
+            (List.sum l) // (List.length l)
+
+        status = if List.isEmpty dlsInProgress then AllDone else SomeLoading (avg dlsInProgress) (List.length dlsInProgress)
+        hasError =
+            dls
+            |> List.filter
+                (\(_, dl) -> case dl of
+                    Error -> False
+                    _ -> True
+                )
+            |> List.isEmpty
+    in
+        DownloadsSummary hasError status
+
+type alias Download = EncodeableDownload
+
+
+{-| Downloads should be reset on load if not completed -}
+decodeDownload : Decode.Decoder Download
+decodeDownload =
+   decodeEncodeableDownload
+   {- Comment this to debug / freeze download statuses between reloads -}
+   |> Decode.map
+   (\dl -> case dl of
+       Completed s -> Completed s
+       Error -> Error
+       _ -> NotAsked
+   )
+
+encodeDownload = encodeEncodeableDownload
+
 type alias Date = Time.Posix
 
 encodeDate = Time.posixToMillis >> Encode.int
@@ -65,8 +112,9 @@ type Cookie = Cookie String
 
 type alias Downloads = Bandcamp.Id.Dict_ Download
 
-type Download =
-    RequestingFormatUrl
+type EncodeableDownload =
+    NotAsked
+    | RequestingFormatUrl
     | RequestingAssetUrl
     | Downloading DownloadStatus
     | Unzipping
@@ -83,32 +131,6 @@ type alias DownloadProgress = Int
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
 decodeCookie =
    Decode.map Cookie Decode.string
-
-decodeDownload =
-   Decode.field "Constructor" Decode.string |> Decode.andThen decodeDownloadHelp
-
-decodeDownloadHelp constructor =
-   case constructor of
-      "RequestingFormatUrl" ->
-         Decode.succeed RequestingFormatUrl
-      "RequestingAssetUrl" ->
-         Decode.succeed RequestingAssetUrl
-      "Downloading" ->
-         Decode.map
-            Downloading
-               ( Decode.field "A1" decodeDownloadStatus )
-      "Unzipping" ->
-         Decode.succeed Unzipping
-      "Scanning" ->
-         Decode.succeed Scanning
-      "Completed" ->
-         Decode.map
-            Completed
-               ( Decode.field "A1" (Decode.list FileSystem.decodeFileRef) )
-      "Error" ->
-         Decode.succeed Error
-      other->
-         Decode.fail <| "Unknown constructor for type Download: " ++ other
 
 decodeDownloadProgress =
    Decode.int
@@ -129,6 +151,34 @@ decodeDownloadStatusHelp constructor =
 
 decodeDownloads =
    Bandcamp.Id.decodeDict_ decodeDownload
+
+decodeEncodeableDownload =
+   Decode.field "Constructor" Decode.string |> Decode.andThen decodeEncodeableDownloadHelp
+
+decodeEncodeableDownloadHelp constructor =
+   case constructor of
+      "NotAsked" ->
+         Decode.succeed NotAsked
+      "RequestingFormatUrl" ->
+         Decode.succeed RequestingFormatUrl
+      "RequestingAssetUrl" ->
+         Decode.succeed RequestingAssetUrl
+      "Downloading" ->
+         Decode.map
+            Downloading
+               ( Decode.field "A1" decodeDownloadStatus )
+      "Unzipping" ->
+         Decode.succeed Unzipping
+      "Scanning" ->
+         Decode.succeed Scanning
+      "Completed" ->
+         Decode.map
+            Completed
+               ( Decode.field "A1" (Decode.list FileSystem.decodeFileRef) )
+      "Error" ->
+         Decode.succeed Error
+      other->
+         Decode.fail <| "Unknown constructor for type EncodeableDownload: " ++ other
 
 decodeLibrary =
    Decode.map2
@@ -163,8 +213,30 @@ decodePurchase =
 encodeCookie (Cookie a1) =
    Encode.string a1
 
-encodeDownload a =
+encodeDownloadProgress a =
+   Encode.int a
+
+encodeDownloadStatus a =
    case a of
+      Waiting ->
+         Encode.object
+            [ ("Constructor", Encode.string "Waiting")
+            ]
+      InProgress a1->
+         Encode.object
+            [ ("Constructor", Encode.string "InProgress")
+            , ("A1", encodeDownloadProgress a1)
+            ]
+
+encodeDownloads a =
+   Bandcamp.Id.encodeDict_ encodeDownload a
+
+encodeEncodeableDownload a =
+   case a of
+      NotAsked ->
+         Encode.object
+            [ ("Constructor", Encode.string "NotAsked")
+            ]
       RequestingFormatUrl ->
          Encode.object
             [ ("Constructor", Encode.string "RequestingFormatUrl")
@@ -195,24 +267,6 @@ encodeDownload a =
          Encode.object
             [ ("Constructor", Encode.string "Error")
             ]
-
-encodeDownloadProgress a =
-   Encode.int a
-
-encodeDownloadStatus a =
-   case a of
-      Waiting ->
-         Encode.object
-            [ ("Constructor", Encode.string "Waiting")
-            ]
-      InProgress a1->
-         Encode.object
-            [ ("Constructor", Encode.string "InProgress")
-            , ("A1", encodeDownloadProgress a1)
-            ]
-
-encodeDownloads a =
-   Bandcamp.Id.encodeDict_ encodeDownload a
 
 encodeLibrary a =
    Encode.object

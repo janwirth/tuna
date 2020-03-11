@@ -17,6 +17,10 @@ import FileSystem
 import Bandcamp.Model
 import Bandcamp.Id
 import Player
+import Svg.Attributes
+import Svg
+import Html
+import Html
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =
@@ -49,8 +53,77 @@ view model =
     in
         Element.column
             [Element.width Element.fill, Element.height Element.fill, Element.clipY, Element.scrollbarY]
-            [tabs model, content]
+            [secondHeader model, content]
 
+secondHeader model = Element.row [Element.padding 10, Element.width Element.fill] [tabs model, downloads model]
+
+downloads model =
+    let
+        summary = downloadSummary model.bandcamp.downloads
+    in
+        Element.el [Element.alignRight] summary
+
+
+downloadSummary : Bandcamp.Model.Downloads -> Element.Element msg
+downloadSummary dls =
+    let
+        {error, status} = Bandcamp.Model.summarizeDownloads dls
+    in case status of
+        Bandcamp.Model.AllDone -> Element.text "No Downloads"
+        Bandcamp.Model.SomeLoading pct count -> progressCircle pct count
+
+progressCircle : Int -> Int -> Element.Element msg
+progressCircle pct numberOfDls =
+    let
+        progress =
+            Svg.circle
+                [ Svg.Attributes.cx "15"
+                , Svg.Attributes.cy "15"
+                , Svg.Attributes.r "13"
+                , Svg.Attributes.fill "transparent"
+                , Svg.Attributes.stroke "black"
+                , Svg.Attributes.strokeWidth "2"
+                , Html.Attributes.attribute "stroke-dashoffset" (String.fromFloat ((toFloat (100 - pct)) * 0.88))
+                , Html.Attributes.attribute "stroke-dasharray" "88"
+                ]
+                []
+
+        path =
+            Svg.circle
+                [ Svg.Attributes.cx "15"
+                , Svg.Attributes.cy "15"
+                , Svg.Attributes.r "13"
+                , Svg.Attributes.fill "transparent"
+                , Svg.Attributes.stroke "#eee"
+                , Svg.Attributes.strokeWidth "1"
+                ]
+                []
+
+        style =
+            Html.node "style" []
+            [Html.text "circle {transition: stroke-dashoffset 0.2s ease-in-out}"]
+
+        size = 30
+        svg =
+          Svg.svg
+            [ Svg.Attributes.width "30"
+            , Svg.Attributes.height "30"
+            , Svg.Attributes.viewBox "0 0 30 30"
+            ]
+            [ 
+              path
+            , progress
+            , style
+            ]
+        count =
+            Element.el
+                [ Element.centerX
+                , Element.centerY
+                , Element.Font.size 16
+                ] (Element.text (String.fromInt numberOfDls))
+    in
+        Element.html svg
+        |> Element.el [Element.inFront count]
 viewTrack : Model.Model -> Track.Track -> Element.Element Msg.Msg
 viewTrack model track =
     case resolveSource model (Track.source track) of
@@ -139,7 +212,7 @@ viewTab model label tab =
     in
         Element.Input.button attribs params
 
-tabs model = Element.row [Element.spacing 10, Element.centerX, Element.padding 10] [
+tabs model = Element.row [Element.spacing 10, Element.centerX] [
         viewTab model "Local" LocalTab
       , viewTab model "Bandcamp" BandcampTab
     ]

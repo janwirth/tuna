@@ -16,6 +16,8 @@ import Element
 import Color
 import Element.Background
 import Element.Input
+import Element.Font
+import Element.Border
 import Json.Decode as Decode
 import Json.Encode as Encode
 import RemoteData
@@ -34,6 +36,8 @@ subscriptions model =
             ((Tuple.mapFirst Bandcamp.Id.fromPort) >> AssetUrlRetrieved)
       , bandcamp_downloader_in_download_progressed
             ((Tuple.mapFirst Bandcamp.Id.fromPort) >> DownloadProgressed)
+      , bandcamp_downloader_in_download_failed
+            (Bandcamp.Id.fromPort >> DownloadFailed)
       , bandcamp_downloader_in_download_completed
             (Bandcamp.Id.fromPort >> DownloadCompleted)
       , bandcamp_downloader_in_files_extracted
@@ -75,6 +79,10 @@ port bandcamp_downloader_in_files_scanned
     : ((Bandcamp.Id.ForPort, List FileSystem.FileRef) -> msg)
     -> Sub msg
 
+port bandcamp_downloader_in_download_failed
+    : (Bandcamp.Id.ForPort -> msg)
+    -> Sub msg
+
 type Msg =
     DownloadButtonClicked Bandcamp.Id.Id
   | ClearButtonClicked Bandcamp.Id.Id
@@ -82,6 +90,7 @@ type Msg =
   | AssetUrlRetrieved (Bandcamp.Id.Id, String)
   | DownloadProgressed (Bandcamp.Id.Id, Bandcamp.Model.DownloadProgress)
   | DownloadCompleted Bandcamp.Id.Id
+  | DownloadFailed Bandcamp.Id.Id
   | FilesExtracted Bandcamp.Id.Id
   | FilesScanned (Bandcamp.Id.Id, List FileSystem.FileRef)
 
@@ -167,6 +176,10 @@ update msg model =
                     , bandcamp_downloader_out_unzip_initiated
                                 (Bandcamp.Id.toPort item_id)
                     )
+                DownloadFailed item_id ->
+                    ({ model | downloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.Error model.downloads}
+                    , Cmd.none
+                    )
 
                 FilesExtracted item_id ->
                     (model
@@ -200,18 +213,27 @@ viewDownloadButton downloads item_id =
     in
         case Bandcamp.Id.getBy item_id downloads of
             Nothing -> viewButton
+            Just Bandcamp.Model.NotAsked -> viewButton
             Just progress -> Element.column [Element.spacing 5] [clearButton, viewProgress progress]
 
 viewProgress : Bandcamp.Model.Download -> Element.Element msg
 viewProgress p =
     case p of
-            Bandcamp.Model.RequestingFormatUrl -> Element.text "1/5 - Probing"
-            Bandcamp.Model.RequestingAssetUrl -> Element.text "2/5 - Formatting"
-            Bandcamp.Model.Downloading Bandcamp.Model.Waiting -> Element.text <| "3/5 - Downloading..."
-            Bandcamp.Model.Downloading (Bandcamp.Model.InProgress pct) -> Element.text <| "3/5 - Downloading " ++ (String.fromInt pct)
-            Bandcamp.Model.Unzipping -> Element.text "4/5 - Extracting"
-            Bandcamp.Model.Scanning -> Element.text "5/5 - Scanning"
+            Bandcamp.Model.RequestingFormatUrl -> Element.text "Preparing"
+            Bandcamp.Model.RequestingAssetUrl -> Element.text "Preparing"
+            Bandcamp.Model.Downloading Bandcamp.Model.Waiting -> Element.text <| "Starting Download"
+            Bandcamp.Model.Downloading (Bandcamp.Model.InProgress pct) -> Element.text <| "Downloading " ++ (String.fromInt pct)
+            Bandcamp.Model.Unzipping -> Element.text "Extracting"
+            Bandcamp.Model.Scanning -> Element.text "Importing"
             Bandcamp.Model.Completed files ->
                 Element.text <| "Downloaded " ++ String.fromInt (List.length files) ++ " files"
-            Bandcamp.Model.Error -> Element.text "Problem"
+            Bandcamp.Model.Error -> viewError
+            Bandcamp.Model.NotAsked -> Element.none
+viewError =
+    Element.el
+        [ Element.Background.color Color.red
+        , Element.Font.color Color.white
+        , Element.padding 5
+        , Element.Border.rounded 5
+        ] (Element.text "Problem")
 

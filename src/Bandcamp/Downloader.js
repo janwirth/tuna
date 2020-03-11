@@ -56,8 +56,9 @@ const asset_url_requested = app => async ({cookie, item_id, formatter_url}) =>
         console.log('formatter in curl', formatter_url)
         const {url, redirected} = await get_asset_url(cookie, formatter_url)
         console.log('asset_url', url)
+        console.log(app.ports)
         if (redirected) {
-            app.ports.bandcamp_in_refresh_required(true)
+            app.ports.bandcamp_downloader_in_download_failed.send(item_id)
         } else {
             app.ports.bandcamp_downloader_in_asset_url_retrieved.send([item_id, url])
         }
