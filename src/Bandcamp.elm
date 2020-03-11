@@ -95,7 +95,7 @@ viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
             Element.column
                 [ Element.spacing 10 ]
                 [ Element.paragraph [] [Element.text title]
-                , Element.text artist
+                , Element.paragraph [] [Element.text artist]
                 ]
 
         viewArtwork =
