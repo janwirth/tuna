@@ -23,10 +23,28 @@ Given a music-collecting power-user that appreciates simplicity.
 - [x] In order to easily add a lot of music I want to drop entire directories in my library
 - [x] In order to get play more music I want to connect to bandcamp
 - [x] In order to play music for a longer time I want the next track to play after the current one ends
-    - playing a track creates a queue according to the current view (sorting / filtering etc.)
+    - [x] playing a track creates a queue according to the current view (sorting / filtering etc.)
+- [ ] in order to learn about tuna without installing it I want to
+    - [ ] see pictures of the app
+        - idea: use desktop capturer https://ourcodeworld.com/articles/read/280/creating-screenshots-of-your-app-or-the-screen-in-electron-framework
+    - [ ]
+- [ ] as maintainer in order to minimize repetetive overhead I want to release a new version of tuna in a single command
+    - [ ] ensure library does not get lost
+    - [ ] publish upgradeable release
+    - [ ] update website
+- [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
 - [ ] In order to skip tracks I want next/prev buttons
+- [ ] in order to recover my music and playlists I want an iTunes import
 - [ ] In order to find tracks by genre or mood I want to add tags to my music
+    - [ ] tag field next to track
+    - [ ] CRUD filterable views
+        - [ ] view
     - examples: genre:house:lo-fi genre:dnb:neurofunk mood:chill set:house-party
+- [ ] in order
+- [ ] in order to see when my music is ready I want a download status information
+    - [x] global download progress indicator
+    - [ ] download list with progress for each downloaded item
+    - [ ] download error info
 - [ ] In order to get a better overview of my music I want to have a table that supports sorting
     - [ ] date added
     - [ ] artist, title, number, album
@@ -34,6 +52,8 @@ Given a music-collecting power-user that appreciates simplicity.
 - [ ] In order to listen to my music while I am not on my computer I want to sync it with my mobile device
 - [ ] In order to sync my devices / connect to my next workflow steps I want to drag and drop files out of the library
 - [ ] In order to not lose my music I want to back it up
+    - NAS?
+    - backblaze?
     - s3 glacier?
 - [ ] In order to keep queues that I enjoyed listening to I want to create a playlist from a past queue
 
