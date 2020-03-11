@@ -179,8 +179,11 @@ update msg model =
         case res of
             Err e -> (model, Cmd.none)
             Ok newAudioFiles ->
-                Debug.todo "yay"
-                -- (mdl, persist mdl)
+                let
+                    (tracks, seed) = Track.addLocal model.seed newAudioFiles model.tracks
+                    mdl = {model | tracks = tracks, seed = seed}
+                in
+                    (mdl, persist mdl)
     UrlRequested -> (model, Cmd.none)
     UrlChanged -> (model, Cmd.none)
 

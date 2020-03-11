@@ -35,6 +35,7 @@ Given a music-collecting power-user that appreciates simplicity.
 - [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
 - [ ] In order to skip tracks I want next/prev buttons
 - [ ] in order to recover my music and playlists I want an iTunes import
+    - deferred, right now I do not have itunes on my machine
 - [ ] In order to find tracks by genre or mood I want to add tags to my music
     - [ ] tag field next to track
     - [ ] CRUD filterable views
