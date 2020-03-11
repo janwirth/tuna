@@ -28,6 +28,7 @@
     "elm": "^0.19.1-3",
     "html-entities": "^1.2.1",
     "isomorphic-fetch": "^2.2.1",
+    "music-metadata": "^6.3.6",
     "nodemon": "^2.0.2",
     "request": "^2.88.2",
     "request-progress": "^3.0.0",

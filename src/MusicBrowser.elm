@@ -127,7 +127,7 @@ progressCircle pct numberOfDls =
 viewTrack : Model.Model -> Track.Track -> Element.Element Msg.Msg
 viewTrack model track =
     case resolveSource model (Track.source track) of
-        Ok (meta, fileRef) -> viewTrackHelp model (Track.getId track) fileRef
+        Ok fileRef -> viewTrackHelp model (Track.getId track) fileRef
         Err err -> Element.text "Track not playable"
 
 
@@ -165,13 +165,13 @@ viewTrackHelp model id fileRef =
     in
         Element.row attribs content
 
-resolveTrack : Model.Model -> Track.Id -> Result String (Track.Meta, FileSystem.FileRef)
+resolveTrack : Model.Model -> Track.Id -> Result String (Track.TrackData, FileSystem.FileRef)
 resolveTrack model id =
-    case Track.getById id model.tracks |> Maybe.map Track.source of
-        Just source -> resolveSource model source
+    case Track.getById id model.tracks of
+        Just track -> resolveSource model (Track.source track) |> Result.map (Tuple.pair (Track.data track))
         Nothing -> Err "Track not found"
 
-resolveSource : Model.Model -> Track.TrackSource -> Result String (Track.Meta, FileSystem.FileRef)
+resolveSource : Model.Model -> Track.TrackSource -> Result String FileSystem.FileRef
 resolveSource {bandcamp, tracks} source =
     case source of
         (Track.BandcampPurchase purchase_id track_number) ->
@@ -180,12 +180,12 @@ resolveSource {bandcamp, tracks} source =
                     Bandcamp.Model.Completed fileRefs ->
                         case List.Extra.getAt track_number fileRefs of
                             Just fileRef ->
-                                Ok ((), fileRef)
+                                Ok fileRef
                             Nothing ->
                                 Err "Track not found in downloads"
                     _ -> Err "Download not completed"
                 Nothing -> Err "No Download"
-        (Track.LocalFile s) -> Ok ((), s)
+        (Track.LocalFile s) -> Ok s
 
 viewTab : Model.Model -> String -> Model.Tab -> Element.Element Msg.Msg
 viewTab model label tab =

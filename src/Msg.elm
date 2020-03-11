@@ -15,7 +15,7 @@ import Browser
 
 type Msg
   = DropZoneMsg (DropZone.DropZoneMessage DropPayload)
-  | FilesRead (Result Decode.Error (List FileSystem.FileRef))
+  | FilesRead (Result Decode.Error (List FileSystem.ReadResult))
   | PlayerMsg Player.Msg
 
   | BandcampMsg Bandcamp.Msg

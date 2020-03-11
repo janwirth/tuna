@@ -157,7 +157,7 @@ getQueue model =
 --         Playing q -> True
 --         _ -> False
 
-view : (Track.Id -> Result String (Track.Meta, FileSystem.FileRef)) -> Model -> Element.Element Msg
+view : (Track.Id -> Result String (Track.TrackData, FileSystem.FileRef)) -> Model -> Element.Element Msg
 view resolveTrack model =
     let
         playbackBarAttribs =
@@ -174,11 +174,11 @@ view resolveTrack model =
                         [playingMarquee "not playing"]
                 Playing q ->
                     case resolveTrack (List.Zipper.current q) of
-                        Ok resolved -> viewPlayer q True resolved
+                        Ok (data, ref) -> viewPlayer q True ref
                         Err err -> [playingMarquee err, viewQueue q]
                 Paused q ->
                     case resolveTrack (List.Zipper.current q) of
-                        Ok resolved -> viewPlayer q False resolved
+                        Ok (data, ref) -> viewPlayer q False ref
                         Err err -> [playingMarquee err, viewQueue q]
                 Ended q -> [playingMarquee "Playlist ended", viewQueue q]
 
@@ -197,8 +197,8 @@ marqueeStyles =
     , Element.Font.color Color.blue
     ]
 
-viewPlayer : Queue -> Bool -> (Track.Meta, FileSystem.FileRef) -> List (Element.Element Msg)
-viewPlayer q isPlaying (meta, fileRef) =
+viewPlayer : Queue -> Bool -> FileSystem.FileRef -> List (Element.Element Msg)
+viewPlayer q isPlaying fileRef =
      [ playingMarquee fileRef.name
      , Element.el
         [Element.width (Element.fillPortion 3 |> Element.minimum 150)]

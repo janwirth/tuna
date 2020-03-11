@@ -19,7 +19,7 @@ filesystemSub =
     let
         captureFileSystemScan val =
             val
-            |> Decode.decodeValue (Decode.list FileSystem.decodeFileRef)
+            |> Decode.decodeValue (Decode.list FileSystem.decodeReadResult)
             |> Msg.FilesRead
     in
       FileSystem.paths_scanned captureFileSystemScan

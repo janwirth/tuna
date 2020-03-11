@@ -33,6 +33,8 @@ addBandcamp seed (purchase_id, file_refs) (Tracks tracks)=
             , title = file_ref.name
             , artist = ""
             , tags = ""
+            , album = ""
+            , albumArtist = ""
             }
         (newBandcampTracks, newSeed) =
             file_refs
@@ -47,19 +49,26 @@ addBandcamp seed (purchase_id, file_refs) (Tracks tracks)=
     in
         (newTracks, newSeed)
 
-addLocal : Random.Pcg.Extended.Seed -> List FileSystem.FileRef -> Tracks -> (Tracks, Random.Pcg.Extended.Seed)
-addLocal seed fileRefs tracks =
+addLocal : Random.Pcg.Extended.Seed -> List FileSystem.ReadResult -> Tracks -> (Tracks, Random.Pcg.Extended.Seed)
+addLocal seed readResult tracks =
     let
         existingLocalPaths : List String
         existingLocalPaths = locals tracks
             |> List.map (Tuple.second >> .path)
         (withoutDupes, newSeed) =
-            fileRefs
+            readResult
             |> List.filter (\{path} -> not <| List.member path existingLocalPaths)
             |> addUuidString seed
 
-        dataFromRef : FileSystem.FileRef -> TrackData
-        dataFromRef ref = {title = ref.name, artist = "", source= LocalFile ref, tags = ""}
+        dataFromRef : FileSystem.ReadResult -> TrackData
+        dataFromRef result =
+            { title = result.name
+            , artist = result.artist
+            , source= LocalFile {name = result.name, path = result.path}
+            , tags = ""
+            , album = result.album
+            , albumArtist = result.albumartist
+            }
         unpacked_new_tracks : Dict.Dict String TrackData
         unpacked_new_tracks =
             withoutDupes
@@ -90,7 +99,7 @@ addUuidString seed list =
 locals : Tracks -> List (Id, FileSystem.FileRef)
 locals tracks =
     tracksToList tracks
-    |> List.filterMap (\(Track (id, data)) -> case data.source of
+    |> List.filterMap (\(Track (id, track)) -> case track.source of
         LocalFile ref -> Just (id, ref)
         _ -> Nothing
     )
@@ -105,12 +114,14 @@ tracksToList (Tracks tr) =
         Nothing -> Nothing
         )
 
-type alias Meta = ()
 
 source : Track -> TrackSource
-source (Track (_, data)) = data.source
+source (Track (_, data_)) = data_.source
 
-getId (Track (id, data)) = id
+data : Track -> TrackData
+data (Track (_, d)) = d
+
+getId (Track (id, _)) = id
 
 -- [generator-start]
 type Track =
@@ -119,7 +130,14 @@ type Track =
 type alias TrackWithId = (Id, TrackData)
 
 type Tracks = Tracks (Dict.Dict String TrackData)
-type alias TrackData = {title : String, artist: String, source: TrackSource, tags: String}
+type alias TrackData =
+    { title : String
+    , artist: String
+    , album: String
+    , albumArtist : String
+    , source: TrackSource
+    , tags: String
+    }
 
 type TrackSource =
     LocalFile FileSystem.FileRef
@@ -140,10 +158,12 @@ decodeTrack =
    Decode.map Track decodeTrackWithId
 
 decodeTrackData =
-   Decode.map4
+   Decode.map6
       TrackData
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
+         ( Decode.field "album" Decode.string )
+         ( Decode.field "albumArtist" Decode.string )
          ( Decode.field "source" decodeTrackSource )
          ( Decode.field "tags" Decode.string )
 
@@ -189,6 +209,8 @@ encodeTrackData a =
    Encode.object
       [ ("title", Encode.string a.title)
       , ("artist", Encode.string a.artist)
+      , ("album", Encode.string a.album)
+      , ("albumArtist", Encode.string a.albumArtist)
       , ("source", encodeTrackSource a.source)
       , ("tags", Encode.string a.tags)
       ]
@@ -216,7 +238,6 @@ encodeTrackWithId (a1, a2) =
 encodeTracks (Tracks a1) =
    encodeDictStringTrackData a1 
 -- [generator-end]
-{-| A hash of initial metadata -}
 type Id = Id Prng.Uuid.Uuid
 
 encodeId : Id -> Encode.Value
@@ -228,6 +249,8 @@ decodeId = Decode.string
         Just u -> Decode.succeed (Id u)
         Nothing -> Decode.fail "could not parse uuid"
         )
+
+
 
 
 
