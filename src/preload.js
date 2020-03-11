@@ -48,6 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(flags.restored)
     app.ports.persist_.subscribe(Storage.persist)
     // connect file system access
-    app.ports.scan_directories.subscribe(FileSystem.import_(app))
+    app.ports.scan_paths.subscribe(FileSystem.import_(app))
     Bandcamp.setupPorts(app)
 })

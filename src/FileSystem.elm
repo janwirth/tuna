@@ -3,8 +3,8 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 
 
-port directories_scanned : (Decode.Value -> a) -> Sub a
-port scan_directories : List String -> Cmd msg
+port paths_scanned : (Decode.Value -> a) -> Sub a
+port scan_paths : List String -> Cmd msg
 
 -- [decgen-start]
 type alias Path = String

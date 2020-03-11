@@ -22,4 +22,4 @@ filesystemSub =
             |> Decode.decodeValue (Decode.list FileSystem.decodeFileRef)
             |> Msg.FilesRead
     in
-      FileSystem.directories_scanned captureFileSystemScan
+      FileSystem.paths_scanned captureFileSystemScan

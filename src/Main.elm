@@ -149,27 +149,17 @@ update msg model =
         ({model | player = Player.update msg_ model.player}, Cmd.none)
     DropZoneMsg (DropZone.Drop files) ->
         let
-            newAudioFiles =
+            newPaths =
                 files
-                |> List.filterMap (\droppedItem -> case droppedItem of
-                        DroppedFile file -> Just file
-                        DroppedDirectory _ -> Nothing
+                |> List.map (\droppedItem -> case droppedItem of
+                        DroppedFile {path} -> path
+                        DroppedDirectory dirPath -> dirPath
                     )
-            newDirectories =
-                files
-                |> List.filterMap (\droppedItem -> case droppedItem of
-                        DroppedFile _ -> Nothing
-                        DroppedDirectory dirPath -> Just dirPath
-                    )
-            (tracks, seed) = Track.addLocal model.seed newAudioFiles model.tracks
-
             mdl = { model -- Make sure to update the DropZone model
                   | dropZone = DropZone.update (DropZone.Drop files) model.dropZone
-                  , tracks = tracks
-                  , seed = seed
                   }
         in
-        (mdl, Cmd.batch [persist mdl, FileSystem.scan_directories newDirectories ])
+        (mdl, Cmd.batch [persist mdl, FileSystem.scan_paths newPaths ])
     DropZoneMsg a ->
         -- These are the other DropZone actions that are not exposed,
         -- but you still need to hand it to DropZone.update so
