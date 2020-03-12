@@ -41,6 +41,7 @@ update msg model =
                 Nothing -> Ended q
                 Just q_ -> Playing q_
         (QueueCreated (Just q), _) -> Playing q
+        (SongClicked q, _) -> Playing q
         _ -> model
 
 restart : Queue -> Queue
@@ -74,7 +75,7 @@ decodeQueue =
 
 type Msg =
     PauseClicked
-  | SongClicked Int
+  | SongClicked Queue
   | PlayClicked
   | SongEnded
   | QueueCreated (Maybe Queue)

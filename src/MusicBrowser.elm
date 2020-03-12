@@ -6,6 +6,7 @@ import Element.Events
 import Element.Border
 import Element.Font
 import List.Extra
+import List.Zipper
 import Model exposing (Tab(..))
 import Msg
 import Color
@@ -25,7 +26,7 @@ import Set
 import InfiniteList
 
 
-config : InfiniteList.Config Track.Track Msg.Msg
+config : InfiniteList.Config Track.Track Track.Id
 config =
     InfiniteList.config
         { itemView = itemView
@@ -33,9 +34,21 @@ config =
         , containerHeight = 500
         }
 
-itemView : Int -> Int -> Track.Track -> Html.Html Msg.Msg
+itemView : Int -> Int -> Track.Track -> Html.Html Track.Id
 itemView idx listIdx track =
-    Html.div [Html.Attributes.style "height" "20px"] [Html.text track.title]
+    let
+        actualItem =
+            Element.el
+                [Element.Events.onClick listIdx]
+                (Element.text track.title)
+        ret = Element.layoutWith
+                { options = [Element.noStaticStyleSheet]}
+                [ Element.height (Element.px 20 |> Element.maximum 20)
+                , Element.width Element.fill
+                , Element.padding 5
+                ] actualItem
+    in
+        Html.div [Html.Attributes.style "height" "20px"] [ret]
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =
@@ -59,6 +72,14 @@ view model =
                             [Element.text "Drop an audio file here to add it to your library or use the bandcamp tab."]
                 False ->
                     let
+                        makeQueue idx =
+                            List.Zipper.fromCons
+                                idx
+                                (List.range (idx + 1) ((List.length model.tracks) - 1))
+                        items =
+                                [ InfiniteList.view config model.infiniteList model.tracks
+                                |> Html.map (makeQueue >> Player.SongClicked >> Msg.PlayerMsg)
+                                ]
                         infList =
                             Html.div
                                 [ 
@@ -68,8 +89,7 @@ view model =
                                 , Html.Attributes.style "overflow-y" "auto"
                                 , Html.Attributes.style "-webkit-overflow-scrolling" "touch"
                                 , InfiniteList.onScroll Msg.InfiniteListMsg
-                                ]
-                                [ InfiniteList.view config model.infiniteList model.tracks ]
+                                ] items
                     in
                         Element.el
                             ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
@@ -154,7 +174,7 @@ progressCircle pct numberOfDls =
         Element.html svg
         |> Element.el [Element.inFront count]
 
-viewTrack : Model.Model -> Int -> Track.Track -> Element.Element Msg.Msg
+viewTrack : Model.Model -> Int -> Track.Track -> Element.Element Track.Id
 viewTrack model trackId track =
     case resolveSource model track.source of
         Ok fileRef -> viewTrackHelp model trackId fileRef
@@ -162,10 +182,10 @@ viewTrack model trackId track =
 
 
 
-viewTrackHelp : Model.Model -> Track.Id -> FileSystem.FileRef -> Element.Element Msg.Msg
+viewTrackHelp : Model.Model -> Track.Id -> FileSystem.FileRef -> Element.Element Track.Id
 viewTrackHelp model id fileRef =
     let
-        attribs = [Element.Events.onClick (Msg.PlayerMsg (Player.SongClicked id))
+        attribs = [Element.Events.onClick id
             , Element.padding 10
             , Element.spacing 10
             , Element.width Element.fill

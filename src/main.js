@@ -6,7 +6,7 @@ const { session } = require('electron')
 const { register } = require('./custom-elements')
 
 // increase memory limit
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
+app.commandLine.appendSwitch('js-flags', '--stack-size 20000 --max-old-space-size=8192');
 
 const os = require('os');
 

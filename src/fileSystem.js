@@ -34,7 +34,7 @@ const readMeta = app => async files => {
         const entries = await Promise.all(paths.map(processOne))
         app.ports.filesystem_in_files_parsed.send(entries)
         cb(null, entries);
-    }, {batchSize: 10})
+    }, {batchSize: 30, concurrent: 3})
     files.forEach(file => q.push(file))
 
 }
