@@ -21,30 +21,32 @@ import Svg.Attributes
 import Svg
 import Html
 import Html
+import Set
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =
     let
-        localBrowser = Element.row
+        localBrowser = Element.column
             [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
-            [{-playlists,-} filesList]
+            [{-playlists,-}pendingFiles, filesList]
+
+        pendingFiles =
+            case Set.size model.pendingFiles of
+                0 -> Element.none
+                count -> Element.text (String.fromInt count)
 
         bcBrowser = Bandcamp.browser
                 model.bandcamp
         filesList =
-            case Track.noTracks model.tracks of
+            case List.isEmpty model.tracks of
                 True ->
                     Element.paragraph
                         [Element.Font.center, Element.padding 50]
                             [Element.text "Drop an audio file here to add it to your library or use the bandcamp tab."]
                 False ->
-                    let
-                        currentlyViewedTracks = Track.tracksToList model.tracks
-                    in
-
                         Element.column
                             ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
-                            (List.map (viewTrack model) currentlyViewedTracks)
+                            (List.indexedMap (viewTrack model) model.tracks)
         content = case model.tab of
             LocalTab -> localBrowser
             BandcampTab ->
@@ -124,10 +126,10 @@ progressCircle pct numberOfDls =
     in
         Element.html svg
         |> Element.el [Element.inFront count]
-viewTrack : Model.Model -> Track.Track -> Element.Element Msg.Msg
-viewTrack model track =
-    case resolveSource model (Track.source track) of
-        Ok fileRef -> viewTrackHelp model (Track.getId track) fileRef
+viewTrack : Model.Model -> Int -> Track.Track -> Element.Element Msg.Msg
+viewTrack model trackId track =
+    case resolveSource model track.source of
+        Ok fileRef -> viewTrackHelp model trackId fileRef
         Err err -> Element.text "Track not playable"
 
 
@@ -135,7 +137,7 @@ viewTrack model track =
 viewTrackHelp : Model.Model -> Track.Id -> FileSystem.FileRef -> Element.Element Msg.Msg
 viewTrackHelp model id fileRef =
     let
-        attribs = [Element.Events.onClick (Msg.PlayerMsg (Player.newQueue id model.tracks))
+        attribs = [Element.Events.onClick (Msg.PlayerMsg (Player.SongClicked id))
             , Element.padding 10
             , Element.spacing 10
             , Element.width Element.fill
@@ -165,10 +167,10 @@ viewTrackHelp model id fileRef =
     in
         Element.row attribs content
 
-resolveTrack : Model.Model -> Track.Id -> Result String (Track.TrackData, FileSystem.FileRef)
+resolveTrack : Model.Model -> Track.Id -> Result String (Track.Track, FileSystem.FileRef)
 resolveTrack model id =
-    case Track.getById id model.tracks of
-        Just track -> resolveSource model (Track.source track) |> Result.map (Tuple.pair (Track.data track))
+    case List.Extra.getAt id model.tracks of
+        Just track -> resolveSource model track.source |> Result.map (Tuple.pair track)
         Nothing -> Err "Track not found"
 
 resolveSource : Model.Model -> Track.TrackSource -> Result String FileSystem.FileRef

@@ -3,7 +3,8 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 
 
-port paths_scanned : (Decode.Value -> a) -> Sub a
+port filesystem_in_files_parsed : (Decode.Value -> a) -> Sub a
+port filesystem_in_paths_scanned : (List String -> a) -> Sub a
 port scan_paths : List String -> Cmd msg
 
 -- [generator-start]

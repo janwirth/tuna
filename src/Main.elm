@@ -12,6 +12,7 @@ import MusicBrowser
 import Player
 import Color
 import Browser.Navigation
+import Set
 import Element.Input
 import Url
 import Dict
@@ -36,7 +37,6 @@ import Url
 import Model exposing (..)
 import Msg exposing (..)
 import Subscriptions exposing (subscriptions)
-import Queue
 import Track
 
 port persist_ : Encode.Value -> Cmd msg
@@ -122,19 +122,14 @@ importHook msg model =
         -- add new files from bandcamp
         BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) ->
             let
-                (tracks, seed) =
+                tracks =
                     Track.addBandcamp
-                        model.seed
                         scanResult
                         model.tracks
-                        |> Debug.log "t"
             in
-            {model | tracks = tracks, seed = seed}
+            {model | tracks = tracks}
         _ -> model
 
-{-
-Use writer monad that also returns a new seed
--}
 update : Msg -> Model.Model -> (Model.Model, Cmd Msg)
 update msg model =
   case msg of
@@ -143,7 +138,7 @@ update msg model =
             (b, cmd) = Bandcamp.update bmsg model.bandcamp
             mdl = {model | bandcamp = b}
         in
-            (mdl, Cmd.batch [persist mdl, Cmd.map Msg.BandcampMsg cmd])
+            (mdl, Cmd.batch [Cmd.map Msg.BandcampMsg cmd])
     TabClicked newTab -> ({model | tab = newTab}, Cmd.none)
     PlayerMsg msg_ ->
         ({model | player = Player.update msg_ model.player}, Cmd.none)
@@ -159,21 +154,28 @@ update msg model =
                   | dropZone = DropZone.update (DropZone.Drop files) model.dropZone
                   }
         in
-        (mdl, Cmd.batch [persist mdl, FileSystem.scan_paths newPaths ])
+        (mdl, Cmd.batch [FileSystem.scan_paths newPaths ])
     DropZoneMsg a ->
         -- These are the other DropZone actions that are not exposed,
         -- but you still need to hand it to DropZone.update so
         -- the DropZone model stays consistent
         ({ model | dropZone = DropZone.update a model.dropZone }, Cmd.none)
-    FilesRead res ->
-        case res of
+    FilesFound files ->
+        ({model | pendingFiles = Set.fromList files}, Cmd.none)
+    FilesRead files ->
+        case files of
             Err e -> (model, Cmd.none)
             Ok newAudioFiles ->
                 let
-                    (tracks, seed) = Track.addLocal model.seed newAudioFiles model.tracks
-                    mdl = {model | tracks = tracks, seed = seed}
+                    tracks = Track.addLocal newAudioFiles model.tracks
+                    pendingFiles = List.foldl (\f pending -> Set.remove f.path pending) model.pendingFiles newAudioFiles
+                    mdl =
+                        { model
+                        | tracks = tracks
+                        , pendingFiles = pendingFiles
+                        }
                 in
-                    (mdl, persist mdl)
+                    (mdl, Cmd.none)
     UrlRequested -> (model, Cmd.none)
     UrlChanged -> (model, Cmd.none)
 

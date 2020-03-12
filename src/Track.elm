@@ -11,126 +11,45 @@ import Bandcamp.Model
 import Dict
 import Bandcamp.Id
 
-getById : Id -> Tracks -> Maybe Track
-getById (Id id) (Tracks t) =
-    Dict.get (Prng.Uuid.toString id) t
-    |> Maybe.map (Tuple.pair (Id id) >> Track)
-
-noTracks : Tracks -> Bool
-noTracks (Tracks t) =
-    Dict.isEmpty t
+type alias Id = Int
+initTracks = []
 
 addBandcamp
-    : Random.Pcg.Extended.Seed
-    -> (Bandcamp.Id.Id, List FileSystem.FileRef)
+     : (Bandcamp.Id.Id, List FileSystem.FileRef)
     -> Tracks
-    -> (Tracks, Random.Pcg.Extended.Seed)
-addBandcamp seed (purchase_id, file_refs) (Tracks tracks)=
-    let
-        refToPurchase : Int -> FileSystem.FileRef -> TrackData
-        refToPurchase trackNumber file_ref =
-            {source = BandcampPurchase purchase_id trackNumber
-            , title = file_ref.name
-            , artist = ""
-            , tags = ""
-            , album = ""
-            , albumArtist = ""
-            }
-        (newBandcampTracks, newSeed) =
-            file_refs
-            |> List.indexedMap refToPurchase
-            |> addUuidString seed
-        newTracks : Tracks
-        newTracks =
-            newBandcampTracks
-            |> Dict.fromList
-            |> Dict.union tracks
-            |> Tracks
-    in
-        (newTracks, newSeed)
+    -> Tracks
+addBandcamp (purchase_id, newPurchases) tracks =
+    tracks ++ (List.indexedMap (refineBandcampPurchase purchase_id) newPurchases)
 
-addLocal : Random.Pcg.Extended.Seed -> List FileSystem.ReadResult -> Tracks -> (Tracks, Random.Pcg.Extended.Seed)
-addLocal seed readResult tracks =
-    let
-        existingLocalPaths : List String
-        existingLocalPaths = locals tracks
-            |> List.map (Tuple.second >> .path)
-        (withoutDupes, newSeed) =
-            readResult
-            |> List.filter (\{path} -> not <| List.member path existingLocalPaths)
-            |> addUuidString seed
+refineBandcampPurchase : Bandcamp.Id.Id -> Int -> FileSystem.FileRef -> Track
+refineBandcampPurchase purchase_id trackNumber file_ref =
+    {source = BandcampPurchase purchase_id trackNumber
+    , title = file_ref.name
+    , artist = ""
+    , tags = ""
+    , album = ""
+    , albumArtist = ""
+    }
 
-        dataFromRef : FileSystem.ReadResult -> TrackData
-        dataFromRef result =
-            { title = result.name
-            , artist = result.artist
-            , source= LocalFile {name = result.name, path = result.path}
-            , tags = ""
-            , album = result.album
-            , albumArtist = result.albumartist
-            }
-        unpacked_new_tracks : Dict.Dict String TrackData
-        unpacked_new_tracks =
-            withoutDupes
-            |> List.map (Tuple.mapSecond dataFromRef)
-            |> Dict.fromList
-        (Tracks unpacked_tracks) = tracks
-        newTracks =
-            Dict.union unpacked_new_tracks unpacked_tracks
-            |> Tracks
-    in
-        (newTracks, newSeed)
+addLocal : List FileSystem.ReadResult -> Tracks -> Tracks
+addLocal readResult tracks =
+        tracks ++ (List.map refineLocalImport readResult)
 
-addUuidString : Random.Pcg.Extended.Seed -> List a -> (List (String, a), Random.Pcg.Extended.Seed)
-addUuidString seed list =
-    let
-        init_accum = ([], seed)
-        reducer : a -> (List (String, a), Random.Pcg.Extended.Seed) -> (List (String, a), Random.Pcg.Extended.Seed)
-        reducer item (items, seed_) =
-            let
-                ( newUuid, newSeed ) =
-                        Random.Pcg.Extended.step Prng.Uuid.stringGenerator seed_
-            in
-                ((newUuid, item) :: items, newSeed)
-    in
-        List.foldl reducer init_accum list
+refineLocalImport : FileSystem.ReadResult -> Track
+refineLocalImport result =
+    { title = result.name
+    , artist = result.artist
+    , source= LocalFile {name = result.name, path = result.path}
+    , tags = ""
+    , album = result.album
+    , albumArtist = result.albumartist
+    }
 
-
-locals : Tracks -> List (Id, FileSystem.FileRef)
-locals tracks =
-    tracksToList tracks
-    |> List.filterMap (\(Track (id, track)) -> case track.source of
-        LocalFile ref -> Just (id, ref)
-        _ -> Nothing
-    )
-
-initTracks = Tracks Dict.empty
-
-tracksToList : Tracks -> List Track
-tracksToList (Tracks tr) =
-    Dict.toList tr
-    |> List.filterMap (\(id, t) -> case Prng.Uuid.fromString id of
-        Just i -> Just (Track (Id i, t))
-        Nothing -> Nothing
-        )
-
-
-source : Track -> TrackSource
-source (Track (_, data_)) = data_.source
-
-data : Track -> TrackData
-data (Track (_, d)) = d
-
-getId (Track (id, _)) = id
 
 -- [generator-start]
-type Track =
-    Track TrackWithId
 
-type alias TrackWithId = (Id, TrackData)
-
-type Tracks = Tracks (Dict.Dict String TrackData)
-type alias TrackData =
+type alias Tracks = List Track
+type alias Track =
     { title : String
     , artist: String
     , album: String
@@ -144,22 +63,9 @@ type TrackSource =
   | BandcampPurchase Bandcamp.Id.Id Int
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
-decodeDictStringTrackData =
-   let
-      decodeDictStringTrackDataTuple =
-         Decode.map2
-            (\a1 a2 -> (a1, a2))
-               ( Decode.field "A1" Decode.string )
-               ( Decode.field "A2" decodeTrackData )
-   in
-      Decode.map Dict.fromList (Decode.list decodeDictStringTrackDataTuple)
-
 decodeTrack =
-   Decode.map Track decodeTrackWithId
-
-decodeTrackData =
    Decode.map6
-      TrackData
+      Track
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
          ( Decode.field "album" Decode.string )
@@ -184,28 +90,10 @@ decodeTrackSourceHelp constructor =
       other->
          Decode.fail <| "Unknown constructor for type TrackSource: " ++ other
 
-decodeTrackWithId =
-   Decode.map2
-      (\a1 a2 -> (a1, a2))
-         ( Decode.field "A1" decodeId )
-         ( Decode.field "A2" decodeTrackData )
-
 decodeTracks =
-   Decode.map Tracks decodeDictStringTrackData
+   Decode.list decodeTrack
 
-encodeDictStringTrackData a =
-   let
-      encodeDictStringTrackDataTuple (a1,a2) =
-         Encode.object
-            [ ("A1", Encode.string a1)
-            , ("A2", encodeTrackData a2) ]
-   in
-      (Encode.list encodeDictStringTrackDataTuple) (Dict.toList a)
-
-encodeTrack (Track a1) =
-   encodeTrackWithId a1
-
-encodeTrackData a =
+encodeTrack a =
    Encode.object
       [ ("title", Encode.string a.title)
       , ("artist", Encode.string a.artist)
@@ -229,32 +117,6 @@ encodeTrackSource a =
             , ("A2", Encode.int a2)
             ]
 
-encodeTrackWithId (a1, a2) =
-   Encode.object
-      [ ("A1", encodeId a1)
-      , ("A2", encodeTrackData a2)
-      ]
-
-encodeTracks (Tracks a1) =
-   encodeDictStringTrackData a1 
+encodeTracks a =
+   (Encode.list encodeTrack) a 
 -- [generator-end]
-type Id = Id Prng.Uuid.Uuid
-
-encodeId : Id -> Encode.Value
-encodeId (Id uuid) = Prng.Uuid.toString uuid |> Encode.string
-
-decodeId : Decode.Decoder Id
-decodeId = Decode.string
-    |> Decode.andThen (\uuid -> case Prng.Uuid.fromString uuid of
-        Just u -> Decode.succeed (Id u)
-        Nothing -> Decode.fail "could not parse uuid"
-        )
-
-
-
-
-
-
-
-
-

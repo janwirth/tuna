@@ -2,11 +2,10 @@ module Player exposing
     ( view
     , Queue
     , Model
-    , newQueue
     , init
     , encodeModel
     , decodeModel
-    , Msg
+    , Msg(..)
     , getCurrent
     , update
     )
@@ -27,18 +26,9 @@ import Url
 import Json.Decode as Decode
 import Json.Encode as Encode
 
-type alias Queue = List.Zipper.Zipper Track.Id
+type alias Queue = List.Zipper.Zipper Int
 
 init = NoTrack
-
-newQueue : Track.Id -> Track.Tracks -> Msg
-newQueue track_id tracks =
-    Track.tracksToList tracks
-        |> List.map Track.getId
-        -- keep tracks after the selected one, drop tracks before
-        |> List.Extra.dropWhile ((/=) track_id)
-        |> List.Zipper.fromList
-        |> QueueCreated
 
 update : Msg -> Model -> Model
 update msg model =
@@ -63,18 +53,17 @@ type alias Zipper = {current: Track.Id, after: List Track.Id, before : List Trac
 decodeZipper =
    Decode.map3
       Zipper
-         ( Decode.field "current" Track.decodeId )
-         ( Decode.field "after" (Decode.list Track.decodeId) )
-         ( Decode.field "before" (Decode.list Track.decodeId) )
+         ( Decode.field "current" Decode.int )
+         ( Decode.field "after" (Decode.list Decode.int) )
+         ( Decode.field "before" (Decode.list Decode.int) )
 
 encodeZipper a =
    Encode.object
-      [ ("current", Track.encodeId a.current)
-      , ("after", (Encode.list Track.encodeId) a.after)
-      , ("before", (Encode.list Track.encodeId) a.before)
+      [ ("current", Encode.int a.current)
+      , ("after", (Encode.list Encode.int) a.after)
+      , ("before", (Encode.list Encode.int) a.before)
       ] 
 -- [generator-end]
-
 encodeQueue : Queue -> Encode.Value
 encodeQueue  q = encodeZipper (Zipper (List.Zipper.current q)(List.Zipper.after q)(List.Zipper.before q))
 
@@ -85,6 +74,7 @@ decodeQueue =
 
 type Msg =
     PauseClicked
+  | SongClicked Int
   | PlayClicked
   | SongEnded
   | QueueCreated (Maybe Queue)
@@ -141,7 +131,6 @@ encodeModel a =
             , ("A1", encodeQueue a1)
             ] 
 -- [generator-end]
-
 getCurrent = getQueue >> Maybe.map List.Zipper.current
 getQueue : Model -> Maybe Queue
 getQueue model =
@@ -157,7 +146,7 @@ getQueue model =
 --         Playing q -> True
 --         _ -> False
 
-view : (Track.Id -> Result String (Track.TrackData, FileSystem.FileRef)) -> Model -> Element.Element Msg
+view : (Track.Id -> Result String (Track.Track, FileSystem.FileRef)) -> Model -> Element.Element Msg
 view resolveTrack model =
     let
         playbackBarAttribs =
@@ -238,3 +227,4 @@ player isPlaying {path, name} =
             |> Element.el [Element.width Element.fill]
     in
         a
+

@@ -5,6 +5,9 @@ require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.j
 const { session } = require('electron')
 const { register } = require('./custom-elements')
 
+// increase memory limit
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
+
 const os = require('os');
 
 const platforms = {

@@ -38,17 +38,6 @@ type Msg =
     CookieRetrieved Bandcamp.Model.Cookie
   | DataRetrieved (Result Decode.Error Bandcamp.Model.Library)
   | DownloaderMsg Bandcamp.Downloader.Msg
-
-getAllFiles : Bandcamp.Model.Model -> List FileSystem.FileRef
-getAllFiles {downloads} =
-    Debug.todo "a"
---    Dict.toList downloads
---    |> List.map (\(_, d) -> case d of
---            Bandcamp.Model.Completed files -> files
---            _ -> []
---        )
---    |> List.concat
-
 browser : Bandcamp.Model.Model -> Element.Element Msg
 browser model =
     let

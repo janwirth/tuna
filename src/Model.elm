@@ -14,15 +14,19 @@ import Json.Decode as Decode
 import Random.Pcg.Extended
 import Url
 import Player
+import Set exposing (Set)
 
 import Browser.Navigation
 
-type alias Flags = {restored : Decode.Value, seed : Int, seed_extension : List Int}
+type alias Flags = {restored : Decode.Value}
+
+encodeSetString = Encode.set Encode.string
+decodeSetString = Decode.list Decode.string
+    |> Decode.map Set.fromList
 
 decodeOrInit : Flags -> Url.Url -> Browser.Navigation.Key -> Model
 decodeOrInit flags url key =
     let
-        seed = Random.Pcg.Extended.initialSeed flags.seed flags.seed_extension
         userModel : UserModel
         userModel =
             Decode.decodeValue decodeUserModel flags.restored
@@ -33,12 +37,13 @@ decodeOrInit flags url key =
             , tab
             , player
             , bandcamp
+            , pendingFiles
             } = userModel
     in
         { key = key
-        , seed = seed
         , dropZone = dropZone
         , tracks = tracks
+        , pendingFiles = pendingFiles
         , tab = tab
         , player = player
         , bandcamp = bandcamp
@@ -49,6 +54,7 @@ initUserModel =
     { dropZone = DropZone.init
     , tracks = Track.initTracks
     , tab = LocalTab
+    , pendingFiles = Set.empty
     , player = Player.init
     , bandcamp = Bandcamp.Model.initModel
     }
@@ -71,8 +77,8 @@ type TransferItem =
 type alias Internals mdl =
     { mdl
     | key : Browser.Navigation.Key
-    , seed : Random.Pcg.Extended.Seed
     }
+
 type alias Model = Internals UserModel
 -- never persist bandcamp cookie
 -- encodeBandcampCookie_ _ = Encode.null
@@ -88,6 +94,7 @@ type alias UserModel =
     , bandcamp : Bandcamp.Model.Model
     , tab : Tab
     , player : Player.Model
+    , pendingFiles : Set String
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
@@ -105,13 +112,14 @@ decodeTab =
       Decode.string |> Decode.andThen recover
 
 decodeUserModel =
-   Decode.map5
+   Decode.map6
       UserModel
          ( Decode.field "dropZone" decodeDropZoneModel )
          ( Decode.field "tracks" Track.decodeTracks )
          ( Decode.field "bandcamp" Bandcamp.Model.decodeModel )
          ( Decode.field "tab" decodeTab )
          ( Decode.field "player" Player.decodeModel )
+         ( Decode.field "pendingFiles" decodeSetString )
 
 encodeTab a =
    case a of
@@ -127,6 +135,7 @@ encodeUserModel a =
       , ("bandcamp", Bandcamp.Model.encodeModel a.bandcamp)
       , ("tab", encodeTab a.tab)
       , ("player", Player.encodeModel a.player)
+      , ("pendingFiles", encodeSetString a.pendingFiles)
       ] 
 -- [generator-end]
 
