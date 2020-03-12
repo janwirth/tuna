@@ -55,11 +55,18 @@ itemView playback _ listIdx track =
                         , Element.Font.color Color.white
                         ]
                     ]
+        title = Element.el [Element.clip, Element.width <| Element.px 350] <| Element.text track.title
+        artist = Element.el [Element.clip, Element.width <| Element.px 200] <| Element.text track.artist
+        album = Element.el [Element.clip, Element.width <| Element.px 200] <| Element.text track.album
         zebra = if modBy 2 listIdx == 0 then [Element.Background.color Color.playerGrey] else []
         actualItem =
             Element.row
                 ([Element.spacing 10, Element.width Element.fill] ++ zebra)
-                [playButton, (Element.el [Element.width <| Element.px 350] <| Element.text track.title), tagsInput]
+                [playButton
+                , title
+                , artist
+                , album
+                , tagsInput]
         ret = Element.layoutWith
                 { options = [Element.noStaticStyleSheet]}
                 [ Element.height (Element.px 20 |> Element.maximum 20)

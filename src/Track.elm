@@ -40,7 +40,7 @@ refineLocalImport result =
     { title = result.name
     , artist = result.artist
     , source= LocalFile {name = result.name, path = result.path}
-    , tags = ""
+    , tags = result.tags
     , album = result.album
     , albumArtist = result.albumartist
     }

@@ -18,12 +18,16 @@ const import_ = app => async paths => {
 const processOne = async path => {
     const meta = await mm.parseFile(path)
     const name = removeExtension(nameFromPath(path))
+    console.log(meta)
+    const tags = meta.common.genre && meta.common.genre[0] || ""
+    console.log(tags)
     const final =
         { ...defaultExtendedMetaData
         , path
         , name : meta.common.title || name
         , ...meta.common
         , track : {no: null}
+        , tags
         }
     return final
 }
@@ -34,7 +38,7 @@ const readMeta = app => async files => {
         const entries = await Promise.all(paths.map(processOne))
         app.ports.filesystem_in_files_parsed.send(entries)
         cb(null, entries);
-    }, {batchSize: 30, concurrent: 3})
+    }, {batchSize: 100, concurrent: 5})
     files.forEach(file => q.push(file))
 
 }
