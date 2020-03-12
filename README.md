@@ -24,15 +24,24 @@ Given a music-collecting power-user that appreciates simplicity.
 - [x] In order to get play more music I want to connect to bandcamp
 - [x] In order to play music for a longer time I want the next track to play after the current one ends
     - [x] playing a track creates a queue according to the current view (sorting / filtering etc.)
+- [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
+- [ ] In order to quickly find specific tracks or albums I want a full-text search across all fields
+- [ ] In order to view sub-collections I want to create playlists which are essentially stored searches
+- [ ] As a user and dev I want a testing and a user mode to not pollute my actual library while polluting
+- [ ] In order to quickly create playlists I want a quick-add tag button
+- [ ] In order to enrich my music library data set I want to read additional data from source files
+- [ ] In order to tidy up my library I want powerful batch editing
+- [ ] In order to quickly navigate through my library I want keyboard support
+    - [ ] control player: next, prev, play, pause, volume
+    - [ ] control browser: move up/down, select, play selected
 - [ ] in order to learn about tuna without installing it I want to
     - [ ] see pictures of the app
         - idea: use desktop capturer https://ourcodeworld.com/articles/read/280/creating-screenshots-of-your-app-or-the-screen-in-electron-framework
-    - [ ]
+    - [ ] Read about the app
 - [ ] as maintainer in order to minimize repetetive overhead I want to release a new version of tuna in a single command
     - [ ] ensure library does not get lost
     - [ ] publish upgradeable release
     - [ ] update website
-- [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
 - [ ] In order to skip tracks I want next/prev buttons
 - [ ] in order to recover my music and playlists I want an iTunes import
     - deferred, right now I do not have itunes on my machine
