@@ -9,6 +9,7 @@ import FileSystem
 import Player
 import Url
 import Browser
+import InfiniteList
 
 -- UPDATE
 
@@ -25,3 +26,5 @@ type Msg
 
   | UrlRequested
   | UrlChanged
+
+  | InfiniteListMsg InfiniteList.Model

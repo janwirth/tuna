@@ -22,13 +22,27 @@ import Svg
 import Html
 import Html
 import Set
+import InfiniteList
+
+
+config : InfiniteList.Config Track.Track Msg.Msg
+config =
+    InfiniteList.config
+        { itemView = itemView
+        , itemHeight = InfiniteList.withConstantHeight 20
+        , containerHeight = 500
+        }
+
+itemView : Int -> Int -> Track.Track -> Html.Html Msg.Msg
+itemView idx listIdx track =
+    Html.div [Html.Attributes.style "height" "20px"] [Html.text track.title]
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =
     let
         localBrowser = Element.column
             [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
-            [{-playlists,-}pendingFiles, filesList]
+            [{-playlists,-}pendingFiles, tracksList]
 
         pendingFiles =
             case Set.size model.pendingFiles of
@@ -37,16 +51,29 @@ view model =
 
         bcBrowser = Bandcamp.browser
                 model.bandcamp
-        filesList =
+        tracksList =
             case List.isEmpty model.tracks of
                 True ->
                     Element.paragraph
                         [Element.Font.center, Element.padding 50]
                             [Element.text "Drop an audio file here to add it to your library or use the bandcamp tab."]
                 False ->
-                        Element.column
+                    let
+                        infList =
+                            Html.div
+                                [ 
+                                  Html.Attributes.style "width" "100%"
+                                , Html.Attributes.style "height" "100%"
+                                , Html.Attributes.style "overflow-x" "hidden"
+                                , Html.Attributes.style "overflow-y" "auto"
+                                , Html.Attributes.style "-webkit-overflow-scrolling" "touch"
+                                , InfiniteList.onScroll Msg.InfiniteListMsg
+                                ]
+                                [ InfiniteList.view config model.infiniteList model.tracks ]
+                    in
+                        Element.el
                             ([Element.clipY, Element.scrollbarY, Element.scrollbarY, Element.width Element.fill, Element.height Element.fill, Element.clipX, Element.scrollbarY])
-                            (List.indexedMap (viewTrack model) model.tracks)
+                            (Element.html infList)
         content = case model.tab of
             LocalTab -> localBrowser
             BandcampTab ->
@@ -126,6 +153,7 @@ progressCircle pct numberOfDls =
     in
         Element.html svg
         |> Element.el [Element.inFront count]
+
 viewTrack : Model.Model -> Int -> Track.Track -> Element.Element Msg.Msg
 viewTrack model trackId track =
     case resolveSource model track.source of

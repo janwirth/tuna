@@ -15,6 +15,7 @@ import Random.Pcg.Extended
 import Url
 import Player
 import Set exposing (Set)
+import InfiniteList
 
 import Browser.Navigation
 
@@ -37,6 +38,7 @@ decodeOrInit flags url key =
             , tab
             , player
             , bandcamp
+            , infiniteList
             , pendingFiles
             } = userModel
     in
@@ -44,6 +46,7 @@ decodeOrInit flags url key =
         , dropZone = dropZone
         , tracks = tracks
         , pendingFiles = pendingFiles
+        , infiniteList = InfiniteList.init
         , tab = tab
         , player = player
         , bandcamp = bandcamp
@@ -52,6 +55,7 @@ decodeOrInit flags url key =
 initUserModel : UserModel
 initUserModel =
     { dropZone = DropZone.init
+    , infiniteList = InfiniteList.init
     , tracks = Track.initTracks
     , tab = LocalTab
     , pendingFiles = Set.empty
@@ -80,9 +84,12 @@ type alias Internals mdl =
     }
 
 type alias Model = Internals UserModel
--- never persist bandcamp cookie
--- encodeBandcampCookie_ _ = Encode.null
--- decodeBandcampCookie_ = Decode.succeed Nothing
+type alias InfiniteList = InfiniteList.Model
+
+decodeInfiniteList = Decode.succeed InfiniteList.init
+encodeInfiniteList _ = Encode.string "InfiniteList is not persisted"
+
+
 -- [generator-start]
 {-| A track ID based on the hash of initial metadata -}
 type Tab = BandcampTab | LocalTab
@@ -95,6 +102,7 @@ type alias UserModel =
     , tab : Tab
     , player : Player.Model
     , pendingFiles : Set String
+    , infiniteList : InfiniteList
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
@@ -112,7 +120,7 @@ decodeTab =
       Decode.string |> Decode.andThen recover
 
 decodeUserModel =
-   Decode.map6
+   Decode.map7
       UserModel
          ( Decode.field "dropZone" decodeDropZoneModel )
          ( Decode.field "tracks" Track.decodeTracks )
@@ -120,6 +128,7 @@ decodeUserModel =
          ( Decode.field "tab" decodeTab )
          ( Decode.field "player" Player.decodeModel )
          ( Decode.field "pendingFiles" decodeSetString )
+         ( Decode.field "infiniteList" decodeInfiniteList )
 
 encodeTab a =
    case a of
@@ -136,17 +145,6 @@ encodeUserModel a =
       , ("tab", encodeTab a.tab)
       , ("player", Player.encodeModel a.player)
       , ("pendingFiles", encodeSetString a.pendingFiles)
+      , ("infiniteList", encodeInfiniteList a.infiniteList)
       ] 
 -- [generator-end]
-
-
-
-
-
-
-
-
-
-
-
-

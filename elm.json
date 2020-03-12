@@ -6,6 +6,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "FabienHenon/elm-infinite-list-view": "3.1.1",
             "NoRedInk/elm-random-pcg-extended": "1.0.0",
             "NoRedInk/elm-uuid": "2.0.0",
             "elm/browser": "1.0.2",

@@ -178,6 +178,7 @@ update msg model =
                     (mdl, Cmd.none)
     UrlRequested -> (model, Cmd.none)
     UrlChanged -> (model, Cmd.none)
+    InfiniteListMsg mdl -> ({model | infiniteList = mdl}, Cmd.none)
 
 -- VIEW
 
