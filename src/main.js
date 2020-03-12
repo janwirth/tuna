@@ -5,7 +5,8 @@ require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.j
 const { session } = require('electron')
 const { register } = require('./custom-elements')
 
-// increase memory limit
+// increase memory limit to prevent elm debug from choking on large lists
+// https://discourse.elm-lang.org/t/rangeerror-maximum-call-stack-size-exceeded-when-decoding-a-long-list/4605
 app.commandLine.appendSwitch('js-flags', '--stack-size 20000 --max-old-space-size=8192');
 
 const os = require('os');
@@ -70,7 +71,7 @@ async function createWindow () {
   // mainWindow.loadFile('index.html')
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools()
+  // mainWindow.webContents.openDevTools()
 }
 
 

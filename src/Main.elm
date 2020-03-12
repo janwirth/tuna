@@ -20,7 +20,6 @@ import FileSystem
 import Bandcamp
 import Bandcamp.Downloader
 import Html exposing (Html, button, div, text)
-import Html.Events exposing (onClick)
 import Html.Attributes exposing (style)
 import DropZone
 import Element
@@ -179,6 +178,15 @@ update msg model =
     UrlRequested -> (model, Cmd.none)
     UrlChanged -> (model, Cmd.none)
     InfiniteListMsg mdl -> ({model | infiniteList = mdl}, Cmd.none)
+    TagChanged idx tag ->
+        let
+            tracks =
+                List.Extra.updateAt
+                    idx
+                    (\track -> {track | tags = tag})
+                    model.tracks
+        in
+        ({model | tracks = tracks}, Cmd.none)
 
 -- VIEW
 

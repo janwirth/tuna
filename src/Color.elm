@@ -7,4 +7,5 @@ black = Element.rgb 0 0 0
 blue = Element.rgb 0.2 0.2 0.8
 red = Element.rgb 0.8 0.2 0.2
 blueTransparent = Element.rgba 0.2 0.2 0.8 0.1
+whiteTransparent = Element.rgba 1 1 1 0.5
 white = Element.rgb 1 1 1

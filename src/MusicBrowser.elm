@@ -25,27 +25,46 @@ import Html
 import Set
 import InfiniteList
 
+type ItemMsg =
+    SetTag Int String
+    | Clicked Int
 
-config : InfiniteList.Config Track.Track Track.Id
-config =
-    InfiniteList.config
-        { itemView = itemView
-        , itemHeight = InfiniteList.withConstantHeight 20
-        , containerHeight = 500
-        }
-
-itemView : Int -> Int -> Track.Track -> Html.Html Track.Id
-itemView idx listIdx track =
+itemView : Maybe Int -> Int -> Int -> Track.Track -> Html.Html ItemMsg
+itemView playback _ listIdx track =
     let
+        tagsInput =
+            Element.Input.text [Element.height (Element.px 20), Element.padding 0, Element.Background.color Color.whiteTransparent, Element.Border.width 0, Element.Border.rounded 0, Element.padding 2]
+                { onChange = (SetTag listIdx)
+                , label = Element.Input.labelLeft [] (Element.none)
+                , text = track.tags
+                , placeholder = Just <| Element.Input.placeholder [] Element.none
+                }
+        playButton =
+            Element.Input.button
+                playButtonAttribs
+                {onPress = Just (Clicked listIdx), label  = Element.text "▶️"}
+        playButtonAttribs =
+            (++) [Element.padding 5, Element.Font.size 10] <| if playback == Just listIdx
+                then
+                        [ Element.Background.color Color.blue
+                        , Element.Font.color Color.white
+                        ]
+                else
+                    [ Element.mouseOver
+                        [ Element.Background.color Color.blue
+                        , Element.Font.color Color.white
+                        ]
+                    ]
+        zebra = if modBy 2 listIdx == 0 then [Element.Background.color Color.playerGrey] else []
         actualItem =
-            Element.el
-                [Element.Events.onClick listIdx]
-                (Element.text track.title)
+            Element.row
+                ([Element.spacing 10, Element.width Element.fill] ++ zebra)
+                [playButton, (Element.el [Element.width <| Element.px 350] <| Element.text track.title), tagsInput]
         ret = Element.layoutWith
                 { options = [Element.noStaticStyleSheet]}
                 [ Element.height (Element.px 20 |> Element.maximum 20)
                 , Element.width Element.fill
-                , Element.padding 5
+                , Element.Font.size 15
                 ] actualItem
     in
         Html.div [Html.Attributes.style "height" "20px"] [ret]
@@ -53,6 +72,15 @@ itemView idx listIdx track =
 view : Model.Model -> Element.Element Msg.Msg
 view model =
     let
+        playback = Player.getCurrent model.player
+
+        config : InfiniteList.Config Track.Track ItemMsg
+        config =
+            InfiniteList.config
+                { itemView = itemView playback
+                , itemHeight = InfiniteList.withConstantHeight 20
+                , containerHeight = 800
+                }
         localBrowser = Element.column
             [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
             [{-playlists,-}pendingFiles, tracksList]
@@ -76,9 +104,14 @@ view model =
                             List.Zipper.fromCons
                                 idx
                                 (List.range (idx + 1) ((List.length model.tracks) - 1))
+                        processItemMsg msg =
+                            case msg of
+                                Clicked idx ->
+                                    (makeQueue idx |> Player.SongClicked |> Msg.PlayerMsg)
+                                SetTag idx tags -> Msg.TagChanged idx tags
                         items =
                                 [ InfiniteList.view config model.infiniteList model.tracks
-                                |> Html.map (makeQueue >> Player.SongClicked >> Msg.PlayerMsg)
+                                |> Html.map processItemMsg
                                 ]
                         infList =
                             Html.div

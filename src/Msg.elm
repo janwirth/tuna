@@ -24,6 +24,8 @@ type Msg
 
   | TabClicked Model.Tab
 
+  | TagChanged Int String
+
   | UrlRequested
   | UrlChanged
 
