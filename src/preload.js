@@ -21,10 +21,8 @@ window.addEventListener('DOMContentLoaded', () => {
   for (const type of ['chrome', 'node', 'electron']) {
     replaceText(`${type}-version`, process.versions[type])
   }
-  console.log('setting data transfer item')
   window.DataTransferItem.prototype.__defineGetter__("entry", function() {
       const entry = this.webkitGetAsEntry()
-      console.log(entry)
       return entry;
   });
 })
@@ -42,12 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // init and connect persistence layer
     const seed = makeSeed()
-    console.log(seed)
     const restored = JSON.parse(Storage.restore())
     const flags = {restored, ...seed}
     const app = Elm.Main.init({flags})
-    console.log(flags)
-    console.log(flags.restored)
     app.ports.persist_.subscribe(Storage.persist)
     // connect file system access
     app.ports.scan_paths.subscribe(FileSystem.import_(app))

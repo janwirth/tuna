@@ -23,10 +23,6 @@ const get_asset_url = async (cookie, encode_url) => {
     }
 
 const setupPorts = app => {
-    app.ports.bandcamp_downloader_out_formatter_url_requested
-        .subscribe(formatter_url_requested(app))
-    app.ports.bandcamp_downloader_out_asset_url_requested
-        .subscribe(asset_url_requested(app))
     app.ports.bandcamp_downloader_out_download_initiated
         .subscribe(download_initiated(app))
     app.ports.bandcamp_downloader_out_unzip_initiated
@@ -34,35 +30,6 @@ const setupPorts = app => {
     app.ports.bandcamp_downloader_out_scan_started
         .subscribe(scan_started(app))
 }
-
-const formatter_url_requested = app => async ({cookie, item_id, download_page_url}) =>
-    {
-        // has it been downloaded before?
-        if (already_downloaded(item_id)) {
-            app.ports.bandcamp_downloader_in_download_completed.send(item_id)
-            return
-        }
-        const data = await fetchAndSlice(cookie, download_page_url)
-        console.log(data)
-        const mp3Download = data.download_items[0].downloads['mp3-v0']
-        const formatter_url = mp3Download.url
-        const msg = [item_id, formatter_url]
-        console.log(msg)
-        app.ports.bandcamp_downloader_in_formatter_url_retrieved.send(msg)
-    }
-
-const asset_url_requested = app => async ({cookie, item_id, formatter_url}) =>
-    {
-        console.log('formatter in curl', formatter_url)
-        const {url, redirected} = await get_asset_url(cookie, formatter_url)
-        console.log('asset_url', url)
-        console.log(app.ports)
-        if (redirected) {
-            app.ports.bandcamp_downloader_in_download_failed.send(item_id)
-        } else {
-            app.ports.bandcamp_downloader_in_asset_url_retrieved.send([item_id, url])
-        }
-    }
 
 const download_initiated = app => params =>
     with_progress(

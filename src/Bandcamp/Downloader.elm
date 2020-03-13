@@ -25,16 +25,15 @@ import Bandcamp.Model
 import FileSystem
 import Element.Border
 import Bandcamp.Id
+import Html
+import Html.Attributes
+import Html.Events
 
 
 subscriptions : Bandcamp.Model.Downloads -> Sub Msg
 subscriptions model =
     Sub.batch [
-        bandcamp_downloader_in_formatter_url_retrieved
-            ((Tuple.mapFirst Bandcamp.Id.fromPort) >> FormatterUrlRetrieved)
-      , bandcamp_downloader_in_asset_url_retrieved
-            ((Tuple.mapFirst Bandcamp.Id.fromPort) >> AssetUrlRetrieved)
-      , bandcamp_downloader_in_download_progressed
+        bandcamp_downloader_in_download_progressed
             ((Tuple.mapFirst Bandcamp.Id.fromPort) >> DownloadProgressed)
       , bandcamp_downloader_in_download_failed
             (Bandcamp.Id.fromPort >> DownloadFailed)
@@ -48,21 +47,11 @@ subscriptions model =
 
 
 -- out ports
-port bandcamp_downloader_out_formatter_url_requested : {cookie: String, item_id: Int, download_page_url: String} -> Cmd msg
-port bandcamp_downloader_out_asset_url_requested : {cookie: String, item_id: Int, formatter_url: String} -> Cmd msg
 port bandcamp_downloader_out_download_initiated : {item_id: Int, asset_url: String} -> Cmd msg
 port bandcamp_downloader_out_unzip_initiated : Int -> Cmd msg
 port bandcamp_downloader_out_scan_started : Int -> Cmd msg
 
 -- in ports
-port bandcamp_downloader_in_formatter_url_retrieved
-    : ((Bandcamp.Id.ForPort, String) -> msg)
-    -> Sub msg
-
-port bandcamp_downloader_in_asset_url_retrieved
-    : ((Bandcamp.Id.ForPort, String) -> msg)
-    -> Sub msg
-
 port bandcamp_downloader_in_download_progressed
     : ((Bandcamp.Id.ForPort, Bandcamp.Model.DownloadProgress) -> msg)
     -> Sub msg
@@ -87,7 +76,7 @@ type Msg =
     DownloadButtonClicked Bandcamp.Id.Id
   | ClearButtonClicked Bandcamp.Id.Id
   | FormatterUrlRetrieved (Bandcamp.Id.Id, String)
-  | AssetUrlRetrieved (Bandcamp.Id.Id, String)
+  | AssetUrlRetrieved Bandcamp.Id.Id String
   | DownloadProgressed (Bandcamp.Id.Id, Bandcamp.Model.DownloadProgress)
   | DownloadCompleted Bandcamp.Id.Id
   | DownloadFailed Bandcamp.Id.Id
@@ -107,50 +96,30 @@ update msg model =
                         }, Cmd.none)
                 DownloadButtonClicked item_id ->
                     let
-                        return =
-                            model.library
-                            |> RemoteData.toMaybe
-                            |> Maybe.andThen (\{download_urls} -> Bandcamp.Id.getBy item_id download_urls)
-                            |> Maybe.map startdownload
-                            |> Maybe.withDefault (model, Cmd.none)
-                        startdownload download_page_url =
-                            let
-                                downloadCmd =
-                                    bandcamp_downloader_out_formatter_url_requested
-                                        { cookie = cookie
-                                        , item_id = Bandcamp.Id.toPort item_id
-                                        , download_page_url = download_page_url
-                                        }
-                                mdl =
-                                    { model
-                                    | downloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.initDownload model.downloads
-                                    }
-                            in
-                                (mdl, downloadCmd)
+                        mdl =
+                            { model
+                            | downloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.initDownload model.downloads
+                            }
                     in
-                        return
+                        (mdl, Cmd.none)
                 FormatterUrlRetrieved (item_id, formatter_url) ->
                     let
                         newDownloads : Bandcamp.Model.Downloads
                         newDownloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.RequestingAssetUrl model.downloads
                         mdl =
                             { model | downloads = newDownloads}
-                        cmd =
-                            bandcamp_downloader_out_asset_url_requested
-                                { cookie = cookie
-                                , item_id = Bandcamp.Id.toPort item_id
-                                , formatter_url = formatter_url
-                                }
                     in
                         (mdl
-                        , cmd
+                        , Cmd.none
                         )
-                AssetUrlRetrieved (item_id, asset_url) ->
+                AssetUrlRetrieved item_id asset_url ->
                     let
                         -- we will update the download once
                         newDownloads : Bandcamp.Model.Downloads
                         newDownloads =
-                            Bandcamp.Id.insertBy item_id Bandcamp.Model.waitingDownload model.downloads
+                            Bandcamp.Id.insertBy
+                                item_id Bandcamp.Model.waitingDownload
+                                model.downloads
                         mdl =
                             { model | downloads = newDownloads}
                         cmd =
@@ -195,40 +164,59 @@ update msg model =
 
 
 
-viewDownloadButton : Bandcamp.Model.Downloads -> Bandcamp.Id.Id -> Element.Element Msg
-viewDownloadButton downloads item_id =
+viewDownloadButton : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> Bandcamp.Id.Id -> Element.Element Msg
+viewDownloadButton downloads library item_id =
     let
-        viewButton =
-            Element.Input.button
-                [Element.padding 10, Element.Border.rounded 5, Element.Background.color Color.playerGrey]
-                { label = Element.text "Download"
-                , onPress = Just <| DownloadButtonClicked item_id
-                }
-        clearButton =
-            Element.Input.button
-                [Element.padding 10, Element.Border.rounded 5, Element.Background.color Color.playerGrey]
-                { label = Element.text "Clear"
-                , onPress = Just <| ClearButtonClicked item_id
-                }
+        url =
+            Bandcamp.Id.getBy item_id library.download_urls
     in
         case Bandcamp.Id.getBy item_id downloads of
-            Nothing -> viewButton
-            Just Bandcamp.Model.NotAsked -> viewButton
-            Just progress -> Element.column [Element.spacing 5] [clearButton, viewProgress progress]
+            Nothing -> viewButton item_id
+            Just progress ->
+                Element.el
+                    [Element.spacing 5]
+                    (viewProgress progress item_id url)
 
-viewProgress : Bandcamp.Model.Download -> Element.Element msg
-viewProgress p =
+viewProgress : Bandcamp.Model.Download -> Bandcamp.Id.Id -> Maybe String -> Element.Element Msg
+viewProgress p item_id downloadUrl =
     case p of
-            Bandcamp.Model.RequestingFormatUrl -> Element.text "Preparing"
-            Bandcamp.Model.RequestingAssetUrl -> Element.text "Preparing"
+            Bandcamp.Model.RequestingAssetUrl ->
+                case downloadUrl of
+                    Just url -> downloadService url
+                        |> Element.map (AssetUrlRetrieved item_id)
+                    Nothing -> Element.text "no download url found"
             Bandcamp.Model.Downloading Bandcamp.Model.Waiting -> Element.text <| "Starting Download"
             Bandcamp.Model.Downloading (Bandcamp.Model.InProgress pct) -> Element.text <| "Downloading " ++ (String.fromInt pct)
             Bandcamp.Model.Unzipping -> Element.text "Extracting"
             Bandcamp.Model.Scanning -> Element.text "Importing"
             Bandcamp.Model.Completed files ->
                 Element.text <| "Downloaded " ++ String.fromInt (List.length files) ++ " files"
-            Bandcamp.Model.Error -> viewError
-            Bandcamp.Model.NotAsked -> Element.none
+            Bandcamp.Model.Error -> Element.column [] [viewError, clearButton item_id]
+            Bandcamp.Model.NotAsked -> viewButton item_id
+
+downloadService : String -> Element.Element String
+downloadService url =
+    Html.node
+        "bandcamp-download"
+        [ Html.Attributes.src url
+        , Html.Events.on "asseturlretrieve" (Decode.at ["detail", "url"] Decode.string)
+        ] []
+    |> Element.html
+
+viewButton : Bandcamp.Id.Id -> Element.Element Msg
+viewButton item_id =
+    Element.Input.button
+        [Element.padding 10, Element.Border.rounded 5, Element.Background.color Color.playerGrey]
+        { label = Element.text "Download"
+        , onPress = Just <| DownloadButtonClicked item_id
+        }
+clearButton : Bandcamp.Id.Id -> Element.Element Msg
+clearButton item_id =
+    Element.Input.button
+        [Element.padding 10, Element.Border.rounded 5, Element.Background.color Color.playerGrey]
+        { label = Element.text "Clear"
+        , onPress = Just <| ClearButtonClicked item_id
+        }
 viewError =
     Element.el
         [ Element.Background.color Color.red

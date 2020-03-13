@@ -114,7 +114,6 @@ type alias Downloads = Bandcamp.Id.Dict_ Download
 
 type EncodeableDownload =
     NotAsked
-    | RequestingFormatUrl
     | RequestingAssetUrl
     | Downloading DownloadStatus
     | Unzipping
@@ -159,8 +158,6 @@ decodeEncodeableDownloadHelp constructor =
    case constructor of
       "NotAsked" ->
          Decode.succeed NotAsked
-      "RequestingFormatUrl" ->
-         Decode.succeed RequestingFormatUrl
       "RequestingAssetUrl" ->
          Decode.succeed RequestingAssetUrl
       "Downloading" ->
@@ -236,10 +233,6 @@ encodeEncodeableDownload a =
       NotAsked ->
          Encode.object
             [ ("Constructor", Encode.string "NotAsked")
-            ]
-      RequestingFormatUrl ->
-         Encode.object
-            [ ("Constructor", Encode.string "RequestingFormatUrl")
             ]
       RequestingAssetUrl ->
          Encode.object

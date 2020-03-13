@@ -93,7 +93,9 @@ viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
                 {src = imgSrc, description = title}
         viewDownloadOptions = case Bandcamp.Id.getBy item_id library.download_urls of
             Just u ->
-                Bandcamp.Downloader.viewDownloadButton downloads item_id
+                Bandcamp.Downloader.viewDownloadButton
+                    downloads library
+                    item_id
             Nothing ->
                 Element.text "no download available"
     in

@@ -13,6 +13,7 @@ const connect = app => async cookie => {
   // @@ TODO FIX for some reason the part after await is called twice
   const username = initData.identities.fan.username
   const collectionData = await fetchAndSlice(cookie, "https://bandcamp.com/" + username)
+  console.log(collectionData)
   app.ports.bandcamp_in_connection_opened.send(collectionData)
 }
 

@@ -22,6 +22,49 @@ function register () {
         }
     }
 
+    class BandcampDownload extends HTMLElement {
+        constructor() {
+            super()
+        }
+        connectedCallback() {
+            // create iframe
+            const iframe = document.createElement('iframe')
+            iframe.src = this.src
+            // event callback
+            const emitUrl = url => {
+                    const cookie = iframe.contentDocument.cookie
+                    const retrieved = new CustomEvent('asseturlretrieve', {detail: {url}})
+                    console.log('emitting', retrieved)
+                    this.dispatchEvent(retrieved)
+                }
+            // test
+            this.appendChild(iframe)
+            // silence bandcamp bc it is noisy
+            const grabStatDownloadLink =
+                async (_, msg) => {
+                    if (msg) {
+                        const isAboutDownload =
+                            msg.indexOf("download") > -1
+                        const isAboutStatDownload =
+                            msg.indexOf("statdownload") > -1
+                        const isSuccess =
+                            msg.indexOf("success") > -1
+                        if (isAboutStatDownload && isSuccess) {
+                            const blobStart = msg.indexOf('{')
+                            const blob = msg.slice(blobStart -1)
+                            const statUrl = JSON.parse(blob).url
+                            const scriptWithDownloadUrl = await (await fetch("https://" + statUrl)).text()
+                            const url = scriptWithDownloadUrl.split('"').find(part => part.indexOf("bits") > -1)
+                            emitUrl(url)
+                        } else if (isAboutDownload) {
+                            return
+                        }
+                    }
+                }
+            iframe.contentWindow.console.log = grabStatDownloadLink
+        }
+    }
+
     class AudioPlayer extends HTMLElement {
         constructor() {
             super()
@@ -68,6 +111,7 @@ function register () {
     }
 
     customElements.define('bandcamp-auth', BandcampAuth)
+    customElements.define('bandcamp-download', BandcampDownload)
     customElements.define('audio-player', AudioPlayer)
 }
 
