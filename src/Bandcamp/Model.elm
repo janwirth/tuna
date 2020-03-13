@@ -18,6 +18,13 @@ initModel =
         Nothing
         Bandcamp.Id.emptyDict_
 
+getItemById : Bandcamp.Id.Id -> Model -> Maybe Purchase
+getItemById id {library} =
+    RemoteData.toMaybe library
+    |> Maybe.andThen (.purchases >> Bandcamp.Id.getBy id)
+
+
+
 
 type alias DownloadsSummary = {error: Bool, status: DownloadsSummaryStatus}
 type DownloadsSummaryStatus = SomeLoading Int Int | AllDone
@@ -107,7 +114,14 @@ type alias Purchase =
     , artist : String
     , artwork: Int
     , item_id : Bandcamp.Id.Id
+    , purchase_type : PurchaseType
+    , tracks : Maybe (List TrackInfo)
     }
+
+type alias TrackInfo = {title : String, artist: String}
+
+type PurchaseType = Album | Track
+
 type Cookie = Cookie String
 
 type alias Downloads = Bandcamp.Id.Dict_ Download
@@ -200,12 +214,33 @@ decodeModel =
          ( Decode.field "downloads" decodeDownloads )
 
 decodePurchase =
-   Decode.map4
+   Decode.map6
       Purchase
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
          ( Decode.field "artwork" Decode.int )
          ( Decode.field "item_id" Bandcamp.Id.decodeId )
+         ( Decode.field "purchase_type" decodePurchaseType )
+         ( Decode.field "tracks" (Decode.maybe (Decode.list decodeTrackInfo)) )
+
+decodePurchaseType =
+   let
+      recover x =
+         case x of
+            "Album"->
+               Decode.succeed Album
+            "Track"->
+               Decode.succeed Track
+            other->
+               Decode.fail <| "Unknown constructor for type PurchaseType: " ++ other
+   in
+      Decode.string |> Decode.andThen recover
+
+decodeTrackInfo =
+   Decode.map2
+      TrackInfo
+         ( Decode.field "title" Decode.string )
+         ( Decode.field "artist" Decode.string )
 
 encodeCookie (Cookie a1) =
    Encode.string a1
@@ -287,6 +322,13 @@ encodeMaybeLibrary a =
       Nothing->
          Encode.null
 
+encodeMaybe_ListTrackInfo_ a =
+   case a of
+      Just b->
+         (Encode.list encodeTrackInfo) b
+      Nothing->
+         Encode.null
+
 encodeModel a =
    Encode.object
       [ ("library", encodeRemoteLibrary a.library)
@@ -300,5 +342,20 @@ encodePurchase a =
       , ("artist", Encode.string a.artist)
       , ("artwork", Encode.int a.artwork)
       , ("item_id", Bandcamp.Id.encodeId a.item_id)
+      , ("purchase_type", encodePurchaseType a.purchase_type)
+      , ("tracks", encodeMaybe_ListTrackInfo_ a.tracks)
+      ]
+
+encodePurchaseType a =
+   case a of
+      Album ->
+         Encode.string "Album"
+      Track ->
+         Encode.string "Track"
+
+encodeTrackInfo a =
+   Encode.object
+      [ ("title", Encode.string a.title)
+      , ("artist", Encode.string a.artist)
       ] 
 -- [generator-end]

@@ -108,10 +108,10 @@ ensureUnique = List.Extra.uniqueBy .path
 
 hooks msg (model, cmd) =
     let
-        (pm, pc) = persistHook msg model
-        im = importHook msg pm
+        im = importHook msg model
+        (pm, pc) = persistHook msg im
     in
-        (im, Cmd.batch [pc, cmd])
+        (pm, Cmd.batch [pc, cmd])
 
 persistHook msg model =
     (model, persist model)

@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // init and connect persistence layer
     const seed = makeSeed()
-    const restored = JSON.parse(Storage.restore())
+    const restored = Storage.restore()
     const flags = {restored, ...seed}
     const app = Elm.Main.init({flags})
     app.ports.persist_.subscribe(Storage.persist)

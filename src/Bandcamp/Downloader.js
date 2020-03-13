@@ -2,11 +2,11 @@ const { createWriteStream } =  require('fs')
 const request =  require('request')
 const progress =  require('request-progress')
 const fs = require('fs')
+const FileSystem = require('../FileSystem')
 const path = require('path')
 const DecompressZip = require('decompress-zip');
 const rimraf = require('rimraf-promise')
 const {fetchAndSlice} = require('./help')
-const FileSystem = require('../FileSystem')
 // Elm orchestrates all these functions.
 const rootPath = require('electron-root-path').rootPath;
 const BANDCAMP_DOWNLOAD_DIR = "bandcamp"
@@ -39,15 +39,15 @@ const download_initiated = app => params =>
         }
     )
 
-const unzip_initiated = app => item_id =>
-    unzip(item_id
-        , app.ports.bandcamp_downloader_in_files_extracted.send
-        )
+const unzip_initiated = app => params =>
+    unzip({on_complete: app.ports.bandcamp_downloader_in_files_extracted.send, ...params})
 
-const scan_started = app => item_id =>
+const scan_started = app => ({item_id, item_type}) =>
     {
-        const target_dir = unzipped_path(item_id)
-        const files = FileSystem.import_(app)([target_dir])
+        const target_dir = unzipped_path(item_id, item_type)
+        console.log(target_dir)
+        FileSystem.import_(app)([target_dir])
+        // app.ports.bandcamp_downloader_in_files_scanned.send(item_id)
     }
 
 
@@ -59,26 +59,36 @@ const tempfile_path = item_id =>
         path.join(
               rootPath
             , BANDCAMP_DOWNLOAD_DIR
-            , `${item_id}.downloading.zip`
+            , `${item_id}.downloading`
             )
 
-const complete_file_path = item_id =>
+const complete_file_path = (item_id, item_type = "zip") =>
         path.join(
             BANDCAMP_DOWNLOAD_DIR
-            , `${item_id}.zip`
+            , `${item_id}.${item_type}`
             )
 
-const unzipped_path = item_id =>
-        path.join(
-              rootPath
-            , BANDCAMP_DOWNLOAD_DIR
-            , `${item_id}`
-            )
+const unzipped_path = (item_id, item_type = "zip") =>
+        item_type == 'zip'
+            ? path.join(
+                  rootPath
+                , BANDCAMP_DOWNLOAD_DIR
+                , `${item_id}`
+                )
+            : path.join(rootPath, complete_file_path(item_id, item_type))
 
-const already_downloaded = item_id =>
-    fs.existsSync(complete_file_path(item_id))
 
-const with_progress = ({asset_url, item_id}, {on_complete, on_progress}) => {
+const already_downloaded = (item_id, item_type) =>
+    fs.existsSync(complete_file_path(item_id, item_type))
+
+const with_progress = ({asset_url, item_id, item_type}, {on_complete, on_progress}) => {
+    if (!(asset_url && item_id && item_type)) {
+        throw '{asset_url, item_id, item_type} required'
+    }
+    if (already_downloaded(item_id, item_type)) {
+        on_complete(item_id)
+        return
+    }
     var has_error = false
     // determine where the file needs to be downloaded to
     const tempfile = tempfile_path(item_id)
@@ -94,20 +104,23 @@ const with_progress = ({asset_url, item_id}, {on_complete, on_progress}) => {
       .on('end', () => {
           // remove `.downloading` suffix
           if (!has_error) {
-              fs.renameSync( tempfile_path(item_id) , complete_file_path(item_id))
+              fs.renameSync( tempfile_path(item_id) , complete_file_path(item_id, item_type))
               on_complete(item_id)
           }
       })
       .pipe(createWriteStream(tempfile))
 }
 
-const unzip = (item_id, on_complete) => {
+const unzip = ({item_id, on_complete, item_type}) => {
     const target = unzipped_path(item_id)
+    if (item_type == "mp3") {
+        on_complete(item_id)
+        return
+    }
     rimraf(target).catch(() => null).then(() => {
         const unzipper = new DecompressZip(complete_file_path(item_id))
         unzipper.on('error', function (err) {
-            console.log(err)
-            console.log('Caught an error');
+            console.warn('Caught an error');
         });
          
         unzipper.on('extract', function (log) {
@@ -115,7 +128,7 @@ const unzip = (item_id, on_complete) => {
         });
          
         unzipper.on('progress', function (fileIndex, fileCount) {
-            console.log('Extracted file ' + (fileIndex + 1) + ' of ' + fileCount);
+            // console.log('Extracted file ' + (fileIndex + 1) + ' of ' + fileCount);
         });
          
         unzipper.extract({

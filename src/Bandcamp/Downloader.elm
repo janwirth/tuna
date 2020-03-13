@@ -48,9 +48,9 @@ subscriptions model =
 
 
 -- out ports
-port bandcamp_downloader_out_download_initiated : {item_id: Int, asset_url: String} -> Cmd msg
-port bandcamp_downloader_out_unzip_initiated : Int -> Cmd msg
-port bandcamp_downloader_out_scan_started : Int -> Cmd msg
+port bandcamp_downloader_out_download_initiated : {item_id: Int, asset_url: String, item_type : String} -> Cmd msg
+port bandcamp_downloader_out_unzip_initiated : {item_id: Int, item_type : String} -> Cmd msg
+port bandcamp_downloader_out_scan_started : {item_id: Int, item_type : String} -> Cmd msg
 
 -- in ports
 port bandcamp_downloader_in_download_progressed
@@ -114,22 +114,27 @@ update msg model =
                         , Cmd.none
                         )
                 AssetUrlRetrieved item_id asset_url ->
-                    let
-                        -- we will update the download once
-                        newDownloads : Bandcamp.Model.Downloads
-                        newDownloads =
-                            Bandcamp.Id.insertBy
-                                item_id Bandcamp.Model.waitingDownload
-                                model.downloads
-                        mdl =
-                            { model | downloads = newDownloads}
-                        cmd =
-                            bandcamp_downloader_out_download_initiated
-                                { item_id = Bandcamp.Id.toPort item_id
-                                , asset_url = asset_url
-                                }
-                    in
-                        (mdl , cmd)
+                    case Bandcamp.Model.getItemById item_id model of
+                        Nothing -> (model, Cmd.none)
+                        Just {purchase_type} ->
+                            let
+                                -- we will update the download once
+                                newDownloads : Bandcamp.Model.Downloads
+                                newDownloads =
+                                    Bandcamp.Id.insertBy
+                                        item_id Bandcamp.Model.waitingDownload
+                                        model.downloads
+                                mdl =
+                                    { model | downloads = newDownloads}
+                                cmd =
+                                    bandcamp_downloader_out_download_initiated
+                                        { item_id = Bandcamp.Id.toPort item_id
+                                        , asset_url = asset_url
+                                        , item_type = getItemType purchase_type
+
+                                        }
+                            in
+                                (mdl , cmd)
                 DownloadProgressed (item_id, pct) ->
                     let
                         dl = Bandcamp.Model.Downloading (Bandcamp.Model.InProgress pct)
@@ -142,19 +147,27 @@ update msg model =
                     in
                         (mdl , Cmd.none)
                 DownloadCompleted item_id ->
-                    ({ model | downloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.Unzipping model.downloads}
-                    , bandcamp_downloader_out_unzip_initiated
-                                (Bandcamp.Id.toPort item_id)
-                    )
+                    case Bandcamp.Model.getItemById item_id model of
+                        Nothing -> (model, Cmd.none)
+                        Just {purchase_type} ->
+                            ({ model | downloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.Unzipping model.downloads}
+                            , bandcamp_downloader_out_unzip_initiated
+                                        {item_id = Bandcamp.Id.toPort item_id, item_type = getItemType purchase_type}
+                            )
                 DownloadFailed item_id ->
                     ({ model | downloads = Bandcamp.Id.insertBy item_id Bandcamp.Model.Error model.downloads}
                     , Cmd.none
                     )
 
                 FilesExtracted item_id ->
-                    (model
-                    , bandcamp_downloader_out_scan_started (Bandcamp.Id.toPort item_id)
-                    )
+                    case Bandcamp.Model.getItemById item_id model of
+                        Nothing -> (model, Cmd.none)
+                            
+                        Just {purchase_type} ->
+                            (model
+                            , bandcamp_downloader_out_scan_started
+                                        {item_id = Bandcamp.Id.toPort item_id, item_type = getItemType purchase_type}
+                            )
                 FilesScanned (item_id, files) ->
                     ({ model
                     | downloads = Bandcamp.Id.insertBy item_id (Bandcamp.Model.Completed files) model.downloads
@@ -162,7 +175,11 @@ update msg model =
                     , Cmd.none
                     )
 
-
+getItemType : Bandcamp.Model.PurchaseType -> String
+getItemType purchase_type =
+    case purchase_type of
+        Bandcamp.Model.Track -> "mp3"
+        Bandcamp.Model.Album -> "zip"
 
 
 viewDownloadButton : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> Bandcamp.Id.Id -> Element.Element Msg
@@ -183,7 +200,10 @@ viewProgress p item_id downloadUrl =
     case p of
             Bandcamp.Model.RequestingAssetUrl ->
                 case downloadUrl of
-                    Just url -> downloadService item_id url
+                    Just url ->
+                        Element.el
+                            [downloadService item_id url]
+                            (Element.text "Preparing...")
                     Nothing -> Element.text "no download url found"
             Bandcamp.Model.Downloading Bandcamp.Model.Waiting -> Element.text <| "Starting Download"
             Bandcamp.Model.Downloading (Bandcamp.Model.InProgress pct) -> Element.text <| "Downloading " ++ (String.fromInt pct)
@@ -194,7 +214,7 @@ viewProgress p item_id downloadUrl =
             Bandcamp.Model.Error -> Element.column [] [viewError, clearButton item_id]
             Bandcamp.Model.NotAsked -> viewButton item_id
 
-downloadService : Bandcamp.Id.Id -> String -> Element.Element Msg
+downloadService : Bandcamp.Id.Id -> String -> Element.Attribute Msg
 downloadService id url =
     let
         bareId = Bandcamp.Id.toPort id
@@ -207,6 +227,8 @@ downloadService id url =
         , Html.Events.on "downloadcomplete" (Decode.succeed (DownloadCompleted id))
         ] []
     |> Element.html
+    |> Element.el [Element.transparent True]
+    |> Element.inFront
 
 viewButton : Bandcamp.Id.Id -> Element.Element Msg
 viewButton item_id =

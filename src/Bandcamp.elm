@@ -38,6 +38,7 @@ type Msg =
     CookieRetrieved Bandcamp.Model.Cookie
   | DataRetrieved (Result Decode.Error Bandcamp.Model.Library)
   | DownloaderMsg Bandcamp.Downloader.Msg
+
 browser : Bandcamp.Model.Model -> Element.Element Msg
 browser model =
     let
@@ -118,27 +119,43 @@ fetchLatestLibrary : String -> Cmd Msg
 fetchLatestLibrary cookie =
     bandcamp_out_connection_requested cookie
 
+matchType : String -> Decode.Decoder Bandcamp.Model.PurchaseType
+matchType typeHint =
+    case typeHint of
+        "a" -> Decode.succeed Bandcamp.Model.Album
+        "t" -> Decode.succeed Bandcamp.Model.Track
+        _ -> Decode.fail <| "Could not match item type " ++ typeHint
 
+decodeTrackInfos : Decode.Decoder (Maybe (List Bandcamp.Model.TrackInfo))
+decodeTrackInfos =
+    Decode.field "tracks" <| Decode.maybe <| Decode.list decodeTrackInfo
+
+decodeTrackInfo : Decode.Decoder Bandcamp.Model.TrackInfo
+decodeTrackInfo =
+    Decode.map2 Bandcamp.Model.TrackInfo
+        (Decode.field "title" Decode.string)
+        (Decode.field "artist" Decode.string)
 
 extractModelFromBlob : Decode.Decoder Bandcamp.Model.Library
 extractModelFromBlob =
     let
-        extractPurchases : Decode.Decoder (Dict.Dict String Bandcamp.Model.Purchase)
+        extractPurchases : Decode.Decoder (List Bandcamp.Model.Purchase)
         extractPurchases =
-            Decode.at ["item_cache", "collection"] (Decode.dict extractPurchase)
+            Decode.at ["items"] (Decode.list extractPurchase)
 
         extractPurchase : Decode.Decoder Bandcamp.Model.Purchase
         extractPurchase =
-            Decode.map4 Bandcamp.Model.Purchase
+            Decode.map6 Bandcamp.Model.Purchase
                 (Decode.field "item_title" Decode.string)
                 (Decode.field "band_name" Decode.string)
                 (Decode.field "item_art_id" Decode.int)
                 (Decode.field "sale_item_id" Decode.int |> Decode.map Bandcamp.Id.fromPort)
+                (Decode.field "tralbum_type" (Decode.string |> Decode.andThen matchType))
+                (decodeTrackInfos)
 
-        item_id_as_key : Dict.Dict String Bandcamp.Model.Purchase -> Bandcamp.Id.Dict_ Bandcamp.Model.Purchase
+        item_id_as_key : List Bandcamp.Model.Purchase -> Bandcamp.Id.Dict_ Bandcamp.Model.Purchase
         item_id_as_key =
-            Dict.toList
-            >> List.map (\(_, item) -> (Bandcamp.Id.toPort item.item_id, item))
+            List.map (\item -> (Bandcamp.Id.toPort item.item_id, item))
             >> Dict.fromList
             >> Bandcamp.Id.wrapDict_
 
@@ -154,7 +171,7 @@ extractModelFromBlob =
         extractDownloadUrls : Decode.Decoder (Dict.Dict String String)
         extractDownloadUrls =
             Decode.at
-                ["collection_data", "redownload_urls"]
+                ["redownload_urls"]
                 (Decode.dict Decode.string)
     in
         Decode.map2
@@ -192,7 +209,11 @@ update msg model =
                     ({model | library = RemoteData.succeed newLibrary}
                     , Cmd.none
                     )
-                Err e -> (model, Cmd.none)
+                Err e ->
+                    let
+                        _ = Debug.log "err" e
+                    in
+                        (model, Cmd.none)
         DownloaderMsg msg_ ->
             let
                 (mdl, cmd) = Bandcamp.Downloader.update msg_ model

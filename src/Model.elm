@@ -31,6 +31,7 @@ decodeOrInit flags url key =
         userModel : UserModel
         userModel =
             Decode.decodeValue decodeUserModel flags.restored
+            -- |> Debug.log "restored"
             |> Result.toMaybe
             |> Maybe.withDefault initUserModel
         { dropZone

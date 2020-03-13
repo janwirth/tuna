@@ -2,7 +2,6 @@
 const Downloader = require("./Bandcamp/Downloader")
 const {fetchAndSlice} = require("./Bandcamp/help")
 const Services = require("./Bandcamp/Services")
-console.log(Services)
 
 const setupPorts = app => {
     // connect bandcamp
@@ -16,7 +15,31 @@ const connect = app => async cookie => {
   // @@ TODO FIX for some reason the part after await is called twice
   const username = initData.identities.fan.username
   const collectionData = await fetchAndSlice(cookie, "https://bandcamp.com/" + username)
-  app.ports.bandcamp_in_connection_opened.send(collectionData)
+
+  const moreResponse = await getRest(cookie, initData.identities.fan.id, collectionData.collection_data.last_token)
+  const more = await moreResponse.json()
+  const redownload_urls = {...collectionData.collection_data.redownload_urls, ...more.redownload_urls}
+  const items = [...Object.values(collectionData.item_cache.collection), ...more.items]
+  const tracklists = {...collectionData.tracklists.collection, ...more.tracklists}
+  // add trackslists
+  items.forEach(i => {
+      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists['p' + i.item_id] || null
+  })
+  const relevant = {items, redownload_urls}
+  app.ports.bandcamp_in_connection_opened.send(relevant)
 }
 
+const getRest = (cookie, fan_id, older_than_token) => {
+        const body =
+            JSON.stringify({ fan_id
+            , older_than_token
+            , "count":10000
+            })
+        const headers = {Cookie: cookie}
+        return fetch("https://bandcamp.com/api/fancollection/1/collection_items",
+            { body
+            , method:"POST"
+            , headers
+            });
+    }
 module.exports = {setupPorts}

@@ -18,9 +18,7 @@ const import_ = app => async paths => {
 const processOne = async path => {
     const meta = await mm.parseFile(path)
     const name = removeExtension(nameFromPath(path))
-    console.log(meta)
     const tags = meta.common.genre && meta.common.genre[0] || ""
-    console.log(tags)
     const final =
         { ...defaultExtendedMetaData
         , path
@@ -72,4 +70,6 @@ const readAllAudioFiles = path => new Promise ((resolve, reject) => {
     });
 })
 
-module.exports = {import_}
+const getMime = file => mime.lookup(file)
+
+module.exports = {import_, getMime}

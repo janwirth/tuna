@@ -31,7 +31,7 @@ function register () {
             super()
         }
         connectedCallback() {
-            console.log(this)
+            var alreadyRetrieved = false
             if (!this.src || !this.id) {
                 throw (new Error('id and src attributes must be set'))
             }
@@ -40,24 +40,22 @@ function register () {
             iframe.src = this.src
             // event callback
             const emitUrl = url => {
+                    if (alreadyRetrieved) {return}
+                    alreadyRetrieved = true
                     const retrieved = new CustomEvent('asseturlretrieve', {detail: {url}})
-                    console.log('emitting', retrieved)
                     this.dispatchEvent(retrieved)
                 }
             const emitComplete = url => {
                     const retrieved = new CustomEvent('downloadcomplete')
-                    console.log('emitting', retrieved)
                     this.dispatchEvent(retrieved)
                 }
 
             const targetPath = Downloader.complete_file_path(this.id)
             // create iframe
             const alreadyCompleted = fs.existsSync(targetPath)
-            console.log(alreadyCompleted, targetPath)
             if (alreadyCompleted) {
                 return emitComplete()
             }
-            return
             // test
             this.appendChild(iframe)
             // silence bandcamp bc it is noisy
@@ -66,6 +64,8 @@ function register () {
                     if (msg) {
                         const isAboutStatDownload =
                             msg.indexOf("statdownload") > -1
+                        const isAboutDownload =
+                            msg.indexOf("download") > -1
                         const isSuccess =
                             msg.indexOf("success") > -1
                         if (isAboutStatDownload && isSuccess) {
