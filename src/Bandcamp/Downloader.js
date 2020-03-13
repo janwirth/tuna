@@ -6,7 +6,7 @@ const path = require('path')
 const DecompressZip = require('decompress-zip');
 const rimraf = require('rimraf-promise')
 const {fetchAndSlice} = require('./help')
-const FileSystem = require('../fileSystem')
+const FileSystem = require('../FileSystem')
 // Elm orchestrates all these functions.
 const rootPath = require('electron-root-path').rootPath;
 const BANDCAMP_DOWNLOAD_DIR = "bandcamp"
@@ -47,9 +47,7 @@ const unzip_initiated = app => item_id =>
 const scan_started = app => item_id =>
     {
         const target_dir = unzipped_path(item_id)
-        const files = FileSystem.scanDir(target_dir)
-        app.ports.bandcamp_downloader_in_files_scanned
-            .send([item_id, files])
+        const files = FileSystem.import_(app)([target_dir])
     }
 
 
@@ -129,4 +127,4 @@ const unzip = (item_id, on_complete) => {
     })
 }
 
-module.exports = {setupPorts}
+module.exports = {setupPorts, complete_file_path}

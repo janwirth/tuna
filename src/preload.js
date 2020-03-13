@@ -1,6 +1,6 @@
 const Storage = require("./backend")
 const Bandcamp = require("./Bandcamp")
-const FileSystem = require("./fileSystem")
+const FileSystem = require("./FileSystem")
 const {register} = require("./custom-elements")
 const {Elm} = require("../elm-stuff/elm.js")
 

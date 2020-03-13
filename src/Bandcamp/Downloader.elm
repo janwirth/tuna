@@ -28,6 +28,7 @@ import Bandcamp.Id
 import Html
 import Html.Attributes
 import Html.Events
+import Bandcamp.Id
 
 
 subscriptions : Bandcamp.Model.Downloads -> Sub Msg
@@ -182,8 +183,7 @@ viewProgress p item_id downloadUrl =
     case p of
             Bandcamp.Model.RequestingAssetUrl ->
                 case downloadUrl of
-                    Just url -> downloadService url
-                        |> Element.map (AssetUrlRetrieved item_id)
+                    Just url -> downloadService item_id url
                     Nothing -> Element.text "no download url found"
             Bandcamp.Model.Downloading Bandcamp.Model.Waiting -> Element.text <| "Starting Download"
             Bandcamp.Model.Downloading (Bandcamp.Model.InProgress pct) -> Element.text <| "Downloading " ++ (String.fromInt pct)
@@ -194,12 +194,17 @@ viewProgress p item_id downloadUrl =
             Bandcamp.Model.Error -> Element.column [] [viewError, clearButton item_id]
             Bandcamp.Model.NotAsked -> viewButton item_id
 
-downloadService : String -> Element.Element String
-downloadService url =
+downloadService : Bandcamp.Id.Id -> String -> Element.Element Msg
+downloadService id url =
+    let
+        bareId = Bandcamp.Id.toPort id
+    in
     Html.node
         "bandcamp-download"
         [ Html.Attributes.src url
-        , Html.Events.on "asseturlretrieve" (Decode.at ["detail", "url"] Decode.string)
+        , Html.Attributes.id (String.fromInt bareId)
+        , Html.Events.on "asseturlretrieve" (Decode.map (AssetUrlRetrieved id) <| Decode.at ["detail", "url"] Decode.string)
+        , Html.Events.on "downloadcomplete" (Decode.succeed (DownloadCompleted id))
         ] []
     |> Element.html
 
