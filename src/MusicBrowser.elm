@@ -22,60 +22,51 @@ import Player
 import Svg.Attributes
 import Svg
 import Html
-import Html
+import Html.Events
 import Set
 import InfiniteList
+import Json.Decode as Decode
 
 type ItemMsg =
     SetTag Int String
     | Clicked Int
 
+setTagOnBlur : Int -> Html.Attribute ItemMsg
+setTagOnBlur listIdx =
+    Html.Events.on
+        "blur"
+        (Decode.map (SetTag listIdx) targetValue)
+
+targetValue : Decode.Decoder String
+targetValue = Decode.at ["target", "value" ] Decode.string
+
 itemView : Maybe Int -> Int -> Int -> Track.Track -> Html.Html ItemMsg
 itemView playback _ listIdx track =
     let
+        height = Html.Attributes.style "height" "20px"
+        class =
+            Html.Attributes.class
+                <| (if playback == Just listIdx then "track playing" else "track") ++
+                (if modBy 2 listIdx == 1 then " zebra" else "")
         tagsInput =
-            Element.Input.text [Element.height (Element.px 20), Element.padding 0, Element.Background.color Color.whiteTransparent, Element.Border.width 0, Element.Border.rounded 0, Element.padding 2]
-                { onChange = (SetTag listIdx)
-                , label = Element.Input.labelLeft [] (Element.none)
-                , text = track.tags
-                , placeholder = Just <| Element.Input.placeholder [] Element.none
-                }
+            Html.input [Html.Attributes.value track.tags, Html.Events.onInput (SetTag listIdx)] []
         playButton =
-            Element.Input.button
-                playButtonAttribs
-                {onPress = Just (Clicked listIdx), label  = Element.text "▶️"}
+                Html.button playButtonAttribs [Html.text "▶️"]
         playButtonAttribs =
-            (++) [Element.padding 5, Element.Font.size 10] <| if playback == Just listIdx
-                then
-                        [ Element.Background.color Color.blue
-                        , Element.Font.color Color.white
-                        ]
-                else
-                    [ Element.mouseOver
-                        [ Element.Background.color Color.blue
-                        , Element.Font.color Color.white
-                        ]
-                    ]
-        title = Element.el [Element.clip, Element.width <| Element.px 350] <| Element.text track.title
-        artist = Element.el [Element.clip, Element.width <| Element.px 200] <| Element.text track.artist
-        album = Element.el [Element.clip, Element.width <| Element.px 200] <| Element.text track.album
-        zebra = if modBy 2 listIdx == 0 then [Element.Background.color Color.playerGrey] else []
+            [Html.Events.onClick (Clicked listIdx)]
+        title = Html.div [Html.Attributes.class "title"] [Html.text track.title]
+        artist = Html.div [Html.Attributes.class "artist"] [Html.text track.artist]
+        album = Html.div [Html.Attributes.class "album"] [Html.text track.album]
         actualItem =
-            Element.row
-                ([Element.spacing 10, Element.width Element.fill] ++ zebra)
+            Html.div
+                [class, height]
                 [playButton
                 , title
                 , artist
                 , album
                 , tagsInput]
-        ret = Element.layoutWith
-                { options = [Element.noStaticStyleSheet]}
-                [ Element.height (Element.px 20 |> Element.maximum 20)
-                , Element.width Element.fill
-                , Element.Font.size 15
-                ] actualItem
     in
-        Html.div [Html.Attributes.style "height" "20px"] [ret]
+        actualItem
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =

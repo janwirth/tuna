@@ -2,6 +2,51 @@
     <head>
         <style>
             * {user-select: none}
+            .track {
+                display: flex;
+            }
+            .track button {
+                background: none;
+                border: none;
+                font-size: 10;
+                cursor: pointer
+            }
+            .track input {
+                background: none;
+                border: none;
+                font-size: 10;
+                cursor: pointer
+                color: inherit;
+                font: inherit;
+            }
+            .track button:hover {
+                background: grey;
+                color: white;
+            }
+            .track.zebra {
+                background: #f6f6f6
+            }
+            .track.playing {
+                background: black;
+                color: white;
+            }
+            .track.playing button {
+                color: white;
+            }
+            .track .title {
+                width: 200px;
+            }
+            .track .artist {
+                width: 100px;
+            }
+            .track .album {
+                width: 200px;
+            }
+            .track > *:not(:last-child) {
+                overflow: hidden;
+                margin-right: 10px;
+                border-right: 1px solid black
+            }
         </style>
     </head>
     <body>
