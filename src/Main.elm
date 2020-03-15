@@ -119,14 +119,7 @@ persistHook msg model =
 importHook msg model =
     case msg of
         -- add new files from bandcamp
-        BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) ->
-            let
-                tracks =
-                    Track.addBandcamp
-                        scanResult
-                        model.tracks
-            in
-            {model | tracks = tracks}
+        BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) -> Debug.todo "Link downloaded files to tracks"
         _ -> model
 
 update : Msg -> Model.Model -> (Model.Model, Cmd Msg)

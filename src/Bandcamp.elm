@@ -17,6 +17,7 @@ import Bandcamp.Model
 import FileSystem
 import Bandcamp.Id
 import RemoteData
+import Track
 
 subscriptions : Bandcamp.Model.Model -> Sub Msg
 subscriptions model =
@@ -114,6 +115,7 @@ initCmd : Bandcamp.Model.Model -> Cmd Msg
 initCmd model =
     case (model.cookie, model.library) of
         (Just (Bandcamp.Model.Cookie cookie), RemoteData.NotAsked ) -> fetchLatestLibrary cookie
+        (Just (Bandcamp.Model.Cookie cookie), RemoteData.Failure f ) -> fetchLatestLibrary cookie
         _ -> Cmd.none
 
 fetchLatestLibrary : String -> Cmd Msg
@@ -127,15 +129,17 @@ matchType typeHint =
         "t" -> Decode.succeed Bandcamp.Model.Track
         _ -> Decode.fail <| "Could not match item type " ++ typeHint
 
-decodeTrackInfos : Decode.Decoder (Maybe (List Bandcamp.Model.TrackInfo))
+decodeTrackInfos : Decode.Decoder (List Bandcamp.Model.TrackInfo)
 decodeTrackInfos =
-    Decode.field "tracks" <| Decode.maybe <| Decode.list decodeTrackInfo
+    Decode.field "tracks" <| Decode.list decodeTrackInfo
 
 decodeTrackInfo : Decode.Decoder Bandcamp.Model.TrackInfo
 decodeTrackInfo =
-    Decode.map2 Bandcamp.Model.TrackInfo
+    Decode.map3 Bandcamp.Model.TrackInfo
         (Decode.field "title" Decode.string)
         (Decode.field "artist" Decode.string)
+        (Decode.at ["file", "mp3-v0"] Decode.string)
+
 
 extractModelFromBlob : Decode.Decoder Bandcamp.Model.Library
 extractModelFromBlob =
@@ -223,3 +227,27 @@ update msg model =
                 , Cmd.map DownloaderMsg cmd
                 )
 
+extractTracksFromPurchase : (Bandcamp.Id.Id, Bandcamp.Model.Purchase) -> Track.Tracks
+extractTracksFromPurchase (id, purchase) =
+    purchase.tracks
+    |> List.indexedMap (trackInfoToTrack purchase)
+
+trackInfoToTrack : Bandcamp.Model.Purchase ->  Int -> Bandcamp.Model.TrackInfo -> Track.Track
+trackInfoToTrack purchase trackNumber trackInfo =
+      { title = trackInfo.title
+      , source = Track.BandcampPurchase trackInfo.playback_url purchase.item_id
+      , artist = trackInfo.artist
+      , album = purchase.title
+      , albumArtist = purchase.artist
+      , tags = ""
+      }
+
+toTracks : Bandcamp.Model.Model -> Track.Tracks
+toTracks {library} =
+    case library of
+        RemoteData.Success {purchases} ->
+            purchases
+            |> Bandcamp.Id.dictToList
+            |> List.map extractTracksFromPurchase
+            |> List.concat
+        _ -> []

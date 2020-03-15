@@ -6,6 +6,7 @@ import Element.Events
 import Element.Border
 import Element.Font
 import List.Extra
+import Url
 import List.Zipper
 import Model exposing (Tab(..))
 import Msg
@@ -86,7 +87,7 @@ view model =
             InfiniteList.config
                 { itemView = itemView playback
                 , itemHeight = InfiniteList.withConstantHeight 20
-                , containerHeight = 800
+                , containerHeight = 1000
                 }
         localBrowser = Element.column
             [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
@@ -97,10 +98,12 @@ view model =
                 0 -> Element.none
                 count -> Element.text (String.fromInt count)
 
+
+        allTracks = model.tracks ++ Bandcamp.toTracks model.bandcamp
         bcBrowser = Bandcamp.browser
                 model.bandcamp
         tracksList =
-            case List.isEmpty model.tracks of
+            case List.isEmpty allTracks of
                 True ->
                     Element.paragraph
                         [Element.Font.center, Element.padding 50]
@@ -117,7 +120,7 @@ view model =
                                     (makeQueue idx |> Player.SongClicked |> Msg.PlayerMsg)
                                 SetTag idx tags -> Msg.TagChanged idx tags
                         items =
-                                [ InfiniteList.view config model.infiniteList model.tracks
+                                [ InfiniteList.view config model.infiniteList allTracks
                                 |> Html.map processItemMsg
                                 ]
                         infList =
@@ -216,14 +219,13 @@ progressCircle pct numberOfDls =
 
 viewTrack : Model.Model -> Int -> Track.Track -> Element.Element Track.Id
 viewTrack model trackId track =
-    case resolveSource model track.source of
-        Ok fileRef -> viewTrackHelp model trackId fileRef
-        Err err -> Element.text "Track not playable"
+    resolveSource model track.source
+    |> viewTrackHelp model trackId track
 
 
 
-viewTrackHelp : Model.Model -> Track.Id -> FileSystem.FileRef -> Element.Element Track.Id
-viewTrackHelp model id fileRef =
+viewTrackHelp : Model.Model -> Track.Id -> Track.Track -> String -> Element.Element Track.Id
+viewTrackHelp model id track src =
     let
         attribs = [Element.Events.onClick id
             , Element.padding 10
@@ -249,33 +251,26 @@ viewTrackHelp model id fileRef =
                 Element.none
         content =
             [ playingMarker
-            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text fileRef.name]
+            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text track.title]
             -- , Element.el [] (Element.text fileRef.path)
             ]
     in
         Element.row attribs content
 
-resolveTrack : Model.Model -> Track.Id -> Result String (Track.Track, FileSystem.FileRef)
+resolveTrack : Model.Model -> Track.Id -> Result String (Track.Track, String)
 resolveTrack model id =
-    case List.Extra.getAt id model.tracks of
-        Just track -> resolveSource model track.source |> Result.map (Tuple.pair track)
+    case List.Extra.getAt id (model.tracks ++ Bandcamp.toTracks model.bandcamp) of
+        Just track -> Ok (resolveSource model track.source |> (Tuple.pair track))
         Nothing -> Err "Track not found"
 
-resolveSource : Model.Model -> Track.TrackSource -> Result String FileSystem.FileRef
+resolveSource : Model.Model -> Track.TrackSource -> String
 resolveSource {bandcamp, tracks} source =
     case source of
-        (Track.BandcampPurchase purchase_id track_number) ->
-            case Bandcamp.Id.getBy purchase_id bandcamp.downloads of
-                Just download -> case download of
-                    Bandcamp.Model.Completed fileRefs ->
-                        case List.Extra.getAt track_number fileRefs of
-                            Just fileRef ->
-                                Ok fileRef
-                            Nothing ->
-                                Err "Track not found in downloads"
-                    _ -> Err "Download not completed"
-                Nothing -> Err "No Download"
-        (Track.LocalFile s) -> Ok s
+        (Track.BandcampPurchase playbackUrl purchase_id) -> playbackUrl
+        (Track.LocalFile {path}) -> fileUri path
+
+fileUri path =
+    "file://" ++ (String.split "/" path |> List.map Url.percentEncode |> String.join "/")
 
 viewTab : Model.Model -> String -> Model.Tab -> Element.Element Msg.Msg
 viewTab model label tab =

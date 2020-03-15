@@ -115,10 +115,10 @@ type alias Purchase =
     , artwork: Int
     , item_id : Bandcamp.Id.Id
     , purchase_type : PurchaseType
-    , tracks : Maybe (List TrackInfo)
+    , tracks : List TrackInfo
     }
 
-type alias TrackInfo = {title : String, artist: String}
+type alias TrackInfo = {title : String, artist: String, playback_url: String}
 
 type PurchaseType = Album | Track
 
@@ -221,7 +221,7 @@ decodePurchase =
          ( Decode.field "artwork" Decode.int )
          ( Decode.field "item_id" Bandcamp.Id.decodeId )
          ( Decode.field "purchase_type" decodePurchaseType )
-         ( Decode.field "tracks" (Decode.maybe (Decode.list decodeTrackInfo)) )
+         ( Decode.field "tracks" (Decode.list decodeTrackInfo) )
 
 decodePurchaseType =
    let
@@ -237,10 +237,11 @@ decodePurchaseType =
       Decode.string |> Decode.andThen recover
 
 decodeTrackInfo =
-   Decode.map2
+   Decode.map3
       TrackInfo
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
+         ( Decode.field "playback_url" Decode.string )
 
 encodeCookie (Cookie a1) =
    Encode.string a1
@@ -322,13 +323,6 @@ encodeMaybeLibrary a =
       Nothing->
          Encode.null
 
-encodeMaybe_ListTrackInfo_ a =
-   case a of
-      Just b->
-         (Encode.list encodeTrackInfo) b
-      Nothing->
-         Encode.null
-
 encodeModel a =
    Encode.object
       [ ("library", encodeRemoteLibrary a.library)
@@ -343,7 +337,7 @@ encodePurchase a =
       , ("artwork", Encode.int a.artwork)
       , ("item_id", Bandcamp.Id.encodeId a.item_id)
       , ("purchase_type", encodePurchaseType a.purchase_type)
-      , ("tracks", encodeMaybe_ListTrackInfo_ a.tracks)
+      , ("tracks", (Encode.list encodeTrackInfo) a.tracks)
       ]
 
 encodePurchaseType a =
@@ -357,5 +351,6 @@ encodeTrackInfo a =
    Encode.object
       [ ("title", Encode.string a.title)
       , ("artist", Encode.string a.artist)
+      , ("playback_url", Encode.string a.playback_url)
       ] 
 -- [generator-end]

@@ -147,7 +147,7 @@ getQueue model =
 --         Playing q -> True
 --         _ -> False
 
-view : (Track.Id -> Result String (Track.Track, FileSystem.FileRef)) -> Model -> Element.Element Msg
+view : (Track.Id -> Result String (Track.Track, String)) -> Model -> Element.Element Msg
 view resolveTrack model =
     let
         playbackBarAttribs =
@@ -164,11 +164,11 @@ view resolveTrack model =
                         [playingMarquee "not playing"]
                 Playing q ->
                     case resolveTrack (List.Zipper.current q) of
-                        Ok (data, ref) -> viewPlayer q True ref
+                        Ok (data, ref) -> viewPlayer q True data ref
                         Err err -> [playingMarquee err, viewQueue q]
                 Paused q ->
                     case resolveTrack (List.Zipper.current q) of
-                        Ok (data, ref) -> viewPlayer q False ref
+                        Ok (data, ref) -> viewPlayer q False data ref
                         Err err -> [playingMarquee err, viewQueue q]
                 Ended q -> [playingMarquee "Playlist ended", viewQueue q]
 
@@ -187,12 +187,12 @@ marqueeStyles =
     , Element.Font.color Color.blue
     ]
 
-viewPlayer : Queue -> Bool -> FileSystem.FileRef -> List (Element.Element Msg)
-viewPlayer q isPlaying fileRef =
-     [ playingMarquee fileRef.name
+viewPlayer : Queue -> Bool -> Track.Track -> String -> List (Element.Element Msg)
+viewPlayer q isPlaying track src =
+     [ playingMarquee (track.title ++ " - " ++ track.artist)
      , Element.el
         [Element.width (Element.fillPortion 3 |> Element.minimum 150)]
-        (player isPlaying fileRef)
+        (player isPlaying src)
      , viewQueue q
      ]
 
@@ -204,15 +204,12 @@ viewQueue =
     >> Element.text
     >> Element.el [Element.padding 40]
 
-player : Bool -> FileSystem.FileRef -> Element.Element Msg
-player isPlaying {path, name} =
+player : Bool -> String -> Element.Element Msg
+player isPlaying uri =
     let
-        fileUri =
-            "file://" ++ (String.split "/" path |> List.map Url.percentEncode |> String.join "/")
-        audioSrc = Html.Attributes.attribute "src"  fileUri
+        audioSrc = Html.Attributes.attribute "src"  uri
         attribs =
             [ audioSrc
-            , Html.Attributes.type_ "audio/wav"
             , Html.Attributes.controls True
             , Html.Attributes.style "width" "auto"
             , Html.Attributes.attribute "playing" (if isPlaying then "true" else "false")

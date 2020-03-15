@@ -14,23 +14,6 @@ import Bandcamp.Id
 type alias Id = Int
 initTracks = []
 
-addBandcamp
-     : (Bandcamp.Id.Id, List FileSystem.FileRef)
-    -> Tracks
-    -> Tracks
-addBandcamp (purchase_id, newPurchases) tracks =
-    tracks ++ (List.indexedMap (refineBandcampPurchase purchase_id) newPurchases)
-
-refineBandcampPurchase : Bandcamp.Id.Id -> Int -> FileSystem.FileRef -> Track
-refineBandcampPurchase purchase_id trackNumber file_ref =
-    {source = BandcampPurchase purchase_id trackNumber
-    , title = file_ref.name
-    , artist = ""
-    , tags = ""
-    , album = ""
-    , albumArtist = ""
-    }
-
 addLocal : List FileSystem.ReadResult -> Tracks -> Tracks
 addLocal readResult tracks =
         tracks ++ (List.map refineLocalImport readResult)
@@ -60,7 +43,7 @@ type alias Track =
 
 type TrackSource =
     LocalFile FileSystem.FileRef
-  | BandcampPurchase Bandcamp.Id.Id Int
+  | BandcampPurchase String Bandcamp.Id.Id
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
 decodeTrack =
@@ -85,8 +68,8 @@ decodeTrackSourceHelp constructor =
       "BandcampPurchase" ->
          Decode.map2
             BandcampPurchase
-               ( Decode.field "A1" Bandcamp.Id.decodeId )
-               ( Decode.field "A2" Decode.int )
+               ( Decode.field "A1" Decode.string )
+               ( Decode.field "A2" Bandcamp.Id.decodeId )
       other->
          Decode.fail <| "Unknown constructor for type TrackSource: " ++ other
 
@@ -113,8 +96,8 @@ encodeTrackSource a =
       BandcampPurchase a1 a2->
          Encode.object
             [ ("Constructor", Encode.string "BandcampPurchase")
-            , ("A1", Bandcamp.Id.encodeId a1)
-            , ("A2", Encode.int a2)
+            , ("A1", Encode.string a1)
+            , ("A2", Bandcamp.Id.encodeId a2)
             ]
 
 encodeTracks a =

@@ -11,7 +11,7 @@ function register () {
             // react to props
             this.appendChild(this.audio)
             if (this.src) {
-                this.audio.src = this.src
+                applyNewSrc(this, 'src', this.src)
             }
             if (this.playing) {
                 this.audio.play()
@@ -25,15 +25,7 @@ function register () {
 
   // Respond to attribute changes.
   attributeChangedCallback(attr, oldValue, newValue) {
-        if (attr == 'name') {
-          this.textContent = `Hello, ${newValue}`;
-        }
-        if (attr == 'src' && this.audio) {
-            this.audio.src = newValue
-            if (this.attributes.playing && this.attributes.playing.value == "true") {
-                this.audio.play()
-            }
-        }
+        applyNewSrc(this, attr, newValue)
         if (attr === 'playing' && newValue === "true" && this.audio) {
             if (newValue) {
                 this.audio.play()
@@ -44,6 +36,15 @@ function register () {
       }
     }
     customElements.define('audio-player', AudioPlayer)
+}
+applyNewSrc = async (this_, attr, newValue) => {
+    if (attr == 'src' && this_.audio) {
+        console.log(newValue)
+        this_.audio.src = newValue
+        if (this_.attributes.playing && this_.attributes.playing.value == "true") {
+            this_.audio.play()
+        }
+    }
 }
 
 module.exports = {register}

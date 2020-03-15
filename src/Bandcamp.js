@@ -23,9 +23,10 @@ const connect = app => async cookie => {
   const tracklists = {...collectionData.tracklists.collection, ...more.tracklists}
   // add trackslists
   items.forEach(i => {
-      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists['p' + i.item_id] || null
+      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists['p' + i.item_id] || []
   })
   const relevant = {items, redownload_urls}
+  console.log(relevant.items)
   app.ports.bandcamp_in_connection_opened.send(relevant)
 }
 
