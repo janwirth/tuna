@@ -16,6 +16,7 @@ import Bandcamp.Downloader
 import Bandcamp.Model
 import FileSystem
 import Bandcamp.Id
+import RemoteData
 
 subscriptions : Bandcamp.Model.Model -> Sub Msg
 subscriptions model =
@@ -111,9 +112,9 @@ viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
 
 initCmd : Bandcamp.Model.Model -> Cmd Msg
 initCmd model =
-    case model.cookie of
-        Just (Bandcamp.Model.Cookie cookie) -> fetchLatestLibrary cookie
-        Nothing -> Cmd.none
+    case (model.cookie, model.library) of
+        (Just (Bandcamp.Model.Cookie cookie), RemoteData.NotAsked ) -> fetchLatestLibrary cookie
+        _ -> Cmd.none
 
 fetchLatestLibrary : String -> Cmd Msg
 fetchLatestLibrary cookie =
