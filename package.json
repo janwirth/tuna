@@ -6,6 +6,7 @@
   "author": "Jan Wirth <contact@jan-wirth.de>",
   "scripts": {
     "start": "nodemon --exec \"npm run elm && npm run monkey-patch && npm run electron\" -w src -e elm,js",
+    "benchmark": "nodemon -w src -e elm,js --exec \"elm make --optimize src/Benchmark.elm --output elm-stuff/benchmark.js\"",
     "elm": "elm make --debug src/Main.elm --output elm-stuff/elm.js",
     "monkey-patch": "sh monkey-patch.sh",
     "electron": "electron .",
