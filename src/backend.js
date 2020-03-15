@@ -15,7 +15,7 @@ const restore = () => {
 const persist_ = async model => {
   const encoded = JSON.stringify(model);
   // at this point, `body` has the entire request body stored in it as a string
-  fs.writeFile(LIBRARY_FILE, encoded, (err, res) => console.log(err, res))
+  fs.writeFile(LIBRARY_FILE, encoded, (err, res) => err ? console.warn(err) : console.info('saved'))
 }
 
 
