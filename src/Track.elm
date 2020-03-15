@@ -11,7 +11,6 @@ import Bandcamp.Model
 import Dict
 import Bandcamp.Id
 
-type alias Id = Int
 initTracks = []
 
 addLocal : List FileSystem.ReadResult -> Tracks -> Tracks
@@ -26,10 +25,12 @@ refineLocalImport result =
     , tags = result.tags
     , album = result.album
     , albumArtist = result.albumartist
+    , id = "fs:" ++ result.hash
     }
 
 
 -- [generator-start]
+type alias Id = String
 
 type alias Tracks = List Track
 type alias Track =
@@ -39,6 +40,7 @@ type alias Track =
     , albumArtist : String
     , source: TrackSource
     , tags: String
+    , id : Id
     }
 
 type TrackSource =
@@ -46,8 +48,11 @@ type TrackSource =
   | BandcampPurchase String Bandcamp.Id.Id
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
+decodeId =
+   Decode.string
+
 decodeTrack =
-   Decode.map6
+   Decode.map7
       Track
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
@@ -55,6 +60,7 @@ decodeTrack =
          ( Decode.field "albumArtist" Decode.string )
          ( Decode.field "source" decodeTrackSource )
          ( Decode.field "tags" Decode.string )
+         ( Decode.field "id" decodeId )
 
 decodeTrackSource =
    Decode.field "Constructor" Decode.string |> Decode.andThen decodeTrackSourceHelp
@@ -76,6 +82,9 @@ decodeTrackSourceHelp constructor =
 decodeTracks =
    Decode.list decodeTrack
 
+encodeId a =
+   Encode.string a
+
 encodeTrack a =
    Encode.object
       [ ("title", Encode.string a.title)
@@ -84,6 +93,7 @@ encodeTrack a =
       , ("albumArtist", Encode.string a.albumArtist)
       , ("source", encodeTrackSource a.source)
       , ("tags", Encode.string a.tags)
+      , ("id", encodeId a.id)
       ]
 
 encodeTrackSource a =

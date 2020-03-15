@@ -28,32 +28,26 @@ import InfiniteList
 import Json.Decode as Decode
 
 type ItemMsg =
-    SetTag Int String
-    | Clicked Int
-
-setTagOnBlur : Int -> Html.Attribute ItemMsg
-setTagOnBlur listIdx =
-    Html.Events.on
-        "blur"
-        (Decode.map (SetTag listIdx) targetValue)
+    SetTag Track.Id String
+    | Clicked Track.Id
 
 targetValue : Decode.Decoder String
 targetValue = Decode.at ["target", "value" ] Decode.string
 
-itemView : Maybe Int -> Int -> Int -> Track.Track -> Html.Html ItemMsg
+itemView : Maybe Track.Id -> Int -> Int -> Track.Track -> Html.Html ItemMsg
 itemView playback _ listIdx track =
     let
         height = Html.Attributes.style "height" "20px"
         class =
             Html.Attributes.class
-                <| (if playback == Just listIdx then "track playing" else "track") ++
+                <| (if playback == Just track.id then "track playing" else "track") ++
                 (if modBy 2 listIdx == 1 then " zebra" else "")
         tagsInput =
-            Html.input [Html.Attributes.value track.tags, Html.Events.onInput (SetTag listIdx)] []
+            Html.input [Html.Attributes.value track.tags, Html.Events.onInput (SetTag track.id)] []
         playButton =
                 Html.button playButtonAttribs [Html.text "▶️"]
         playButtonAttribs =
-            [Html.Events.onClick (Clicked listIdx)]
+            [Html.Events.onClick (Clicked track.id)]
         title = Html.div [Html.Attributes.class "title"] [Html.text track.title]
         artist = Html.div [Html.Attributes.class "artist"] [Html.text track.artist]
         album = Html.div [Html.Attributes.class "album"] [Html.text track.album]
@@ -71,6 +65,7 @@ itemView playback _ listIdx track =
 view : Model.Model -> Element.Element Msg.Msg
 view model =
     let
+        playback : Maybe Track.Id
         playback = Player.getCurrent model.player
 
         config : InfiniteList.Config Track.Track ItemMsg
@@ -90,7 +85,7 @@ view model =
                 count -> Element.text (String.fromInt count)
 
 
-        allTracks = model.tracks ++ Bandcamp.toTracks model.bandcamp
+        allTracks = model.tracks
         bcBrowser = Bandcamp.browser
                 model.bandcamp
         tracksList =
@@ -101,15 +96,21 @@ view model =
                             [Element.text "Drop an audio file here to add it to your library or use the bandcamp tab."]
                 False ->
                     let
-                        makeQueue idx =
-                            List.Zipper.fromCons
-                                idx
-                                (List.range (idx + 1) ((List.length model.tracks) - 1))
+                        makeQueue : Track.Id -> Player.Queue
+                        makeQueue id =
+                            model.tracks
+                            |> List.Extra.splitWhen (\someTrack -> id == someTrack.id)
+                            |> Maybe.andThen (Tuple.second >> List.map .id >> List.Zipper.fromList)
+                            |> Maybe.withDefault (List.Zipper.singleton id)
+
+                        processItemMsg : ItemMsg -> Msg.Msg
                         processItemMsg msg =
                             case msg of
                                 Clicked idx ->
                                     (makeQueue idx |> Player.SongClicked |> Msg.PlayerMsg)
                                 SetTag idx tags -> Msg.TagChanged idx tags
+
+                        items : List (Html.Html Msg.Msg)
                         items =
                                 [ InfiniteList.view config model.infiniteList allTracks
                                 |> Html.map processItemMsg
@@ -208,7 +209,7 @@ progressCircle pct numberOfDls =
         Element.html svg
         |> Element.el [Element.inFront count]
 
-viewTrack : Model.Model -> Int -> Track.Track -> Element.Element Track.Id
+viewTrack : Model.Model -> Track.Id -> Track.Track -> Element.Element Track.Id
 viewTrack model trackId track =
     resolveSource model track.source
     |> viewTrackHelp model trackId track
@@ -250,7 +251,7 @@ viewTrackHelp model id track src =
 
 resolveTrack : Model.Model -> Track.Id -> Result String (Track.Track, String)
 resolveTrack model id =
-    case List.Extra.getAt id (model.tracks ++ Bandcamp.toTracks model.bandcamp) of
+    case List.Extra.find (\someTrack -> someTrack.id == id) model.tracks of
         Just track -> Ok (resolveSource model track.source |> (Tuple.pair track))
         Nothing -> Err "Track not found"
 

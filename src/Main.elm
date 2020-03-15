@@ -119,6 +119,8 @@ persistHook msg model =
 importHook msg model =
     case msg of
         -- add new files from bandcamp
+        BandcampMsg (Bandcamp.DataRetrieved (Ok library)) ->
+            {model | tracks = model.tracks ++ Bandcamp.toTracks model.bandcamp}
         BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) -> Debug.todo "Link downloaded files to tracks"
         _ -> model
 
@@ -171,11 +173,11 @@ update msg model =
     UrlRequested -> (model, Cmd.none)
     UrlChanged -> (model, Cmd.none)
     InfiniteListMsg mdl -> ({model | infiniteList = mdl}, Cmd.none)
-    TagChanged idx tag ->
+    TagChanged id tag ->
         let
             tracks =
-                List.Extra.updateAt
-                    idx
+                List.Extra.updateIf
+                    (\track -> track.id == id)
                     (\track -> {track | tags = tag})
                     model.tracks
         in

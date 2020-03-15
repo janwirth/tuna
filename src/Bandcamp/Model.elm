@@ -118,7 +118,12 @@ type alias Purchase =
     , tracks : List TrackInfo
     }
 
-type alias TrackInfo = {title : String, artist: String, playback_url: String}
+type alias TrackInfo =
+    { title : String
+    , artist: String
+    , playback_url: String
+    , id : String
+    }
 
 type PurchaseType = Album | Track
 
@@ -237,11 +242,12 @@ decodePurchaseType =
       Decode.string |> Decode.andThen recover
 
 decodeTrackInfo =
-   Decode.map3
+   Decode.map4
       TrackInfo
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
          ( Decode.field "playback_url" Decode.string )
+         ( Decode.field "id" Decode.string )
 
 encodeCookie (Cookie a1) =
    Encode.string a1
@@ -352,5 +358,6 @@ encodeTrackInfo a =
       [ ("title", Encode.string a.title)
       , ("artist", Encode.string a.artist)
       , ("playback_url", Encode.string a.playback_url)
+      , ("id", Encode.string a.id)
       ] 
 -- [generator-end]

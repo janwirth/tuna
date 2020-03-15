@@ -26,7 +26,7 @@ import Url
 import Json.Decode as Decode
 import Json.Encode as Encode
 
-type alias Queue = List.Zipper.Zipper Int
+type alias Queue = List.Zipper.Zipper Track.Id
 
 init = NoTrack
 
@@ -54,18 +54,17 @@ type alias Zipper = {current: Track.Id, after: List Track.Id, before : List Trac
 decodeZipper =
    Decode.map3
       Zipper
-         ( Decode.field "current" Decode.int )
-         ( Decode.field "after" (Decode.list Decode.int) )
-         ( Decode.field "before" (Decode.list Decode.int) )
+         ( Decode.field "current" Track.decodeId )
+         ( Decode.field "after" (Decode.list Track.decodeId) )
+         ( Decode.field "before" (Decode.list Track.decodeId) )
 
 encodeZipper a =
    Encode.object
-      [ ("current", Encode.int a.current)
-      , ("after", (Encode.list Encode.int) a.after)
-      , ("before", (Encode.list Encode.int) a.before)
+      [ ("current", Track.encodeId a.current)
+      , ("after", (Encode.list Track.encodeId) a.after)
+      , ("before", (Encode.list Track.encodeId) a.before)
       ] 
--- [generator-end]
-encodeQueue : Queue -> Encode.Value
+-- [generator-end]encodeQueue : Queue -> Encode.Value
 encodeQueue  q = encodeZipper (Zipper (List.Zipper.current q)(List.Zipper.after q)(List.Zipper.before q))
 
 decodeQueue : Decode.Decoder Queue
@@ -132,6 +131,7 @@ encodeModel a =
             , ("A1", encodeQueue a1)
             ] 
 -- [generator-end]
+
 getCurrent = getQueue >> Maybe.map List.Zipper.current
 getQueue : Model -> Maybe Queue
 getQueue model =
@@ -225,4 +225,6 @@ player isPlaying uri =
             |> Element.el [Element.width Element.fill]
     in
         a
+
+
 

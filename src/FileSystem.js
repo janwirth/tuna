@@ -26,6 +26,7 @@ const processOne = async path => {
         , ...meta.common
         , track : {no: null}
         , tags
+        , hash : await hasha.fromFile(path)
         }
     return final
 }

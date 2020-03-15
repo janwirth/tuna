@@ -18,6 +18,7 @@ type alias ReadResult =
     , artist : String
     , track : {no: Maybe Int}
     , tags : String
+    , hash : String
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
@@ -33,7 +34,7 @@ decodePath =
    Decode.string
 
 decodeReadResult =
-   Decode.map7
+   Decode.map8
       ReadResult
          ( Decode.field "name" Decode.string )
          ( Decode.field "path" decodePath )
@@ -42,6 +43,7 @@ decodeReadResult =
          ( Decode.field "artist" Decode.string )
          ( Decode.field "track" decodeRecord_no_MaybeInt_ )
          ( Decode.field "tags" Decode.string )
+         ( Decode.field "hash" Decode.string )
 
 decodeRecord_no_MaybeInt_ =
    Decode.map
@@ -73,6 +75,7 @@ encodeReadResult a =
       , ("artist", Encode.string a.artist)
       , ("track", encodeRecord_no_MaybeInt_ a.track)
       , ("tags", Encode.string a.tags)
+      , ("hash", Encode.string a.hash)
       ]
 
 encodeRecord_no_MaybeInt_ a =

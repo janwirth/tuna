@@ -135,10 +135,11 @@ decodeTrackInfos =
 
 decodeTrackInfo : Decode.Decoder Bandcamp.Model.TrackInfo
 decodeTrackInfo =
-    Decode.map3 Bandcamp.Model.TrackInfo
+    Decode.map4 Bandcamp.Model.TrackInfo
         (Decode.field "title" Decode.string)
         (Decode.field "artist" Decode.string)
         (Decode.at ["file", "mp3-v0"] Decode.string)
+        (Decode.field "id" Decode.int |> Decode.map String.fromInt)
 
 
 extractModelFromBlob : Decode.Decoder Bandcamp.Model.Library
@@ -240,6 +241,7 @@ trackInfoToTrack purchase trackNumber trackInfo =
       , album = purchase.title
       , albumArtist = purchase.artist
       , tags = ""
+      , id = "bc:" ++ trackInfo.id
       }
 
 toTracks : Bandcamp.Model.Model -> Track.Tracks

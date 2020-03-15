@@ -10,6 +10,7 @@ import Player
 import Url
 import Browser
 import InfiniteList
+import Track
 
 -- UPDATE
 
@@ -24,7 +25,7 @@ type Msg
 
   | TabClicked Model.Tab
 
-  | TagChanged Int String
+  | TagChanged Track.Id String
 
   | UrlRequested
   | UrlChanged
