@@ -11,6 +11,9 @@
     "electron": "electron .",
     "build": "elm make src/Main.elm --optimize && electron-builder"
   },
+  "electronDownload": {
+    "cache": "~/home/.cache/electron-builder"
+  },
   "keywords": [
     "Electron"
   ],
