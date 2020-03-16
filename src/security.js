@@ -7,7 +7,7 @@ const allowAppAsFrameAncestor = session => {
     session.webRequest.onHeadersReceived(filter, (info, callback) => {
         const responseHeaders = info.responseHeaders
         // update header
-        responseHeaders['Content-Security-Policy'] ="frame-ancestors self app://tuna"
+        responseHeaders['Content-Security-Policy'] ="frame-ancestors self app://-"
         // next
         callback({responseHeaders})
     });

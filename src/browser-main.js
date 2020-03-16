@@ -11,7 +11,10 @@ register()
 window.addEventListener('DOMContentLoaded', () => {
 
   // log environment
-  console.log(`${type}-version`, process.versions[type])
+  for (const type of ['chrome', 'node', 'electron']) {
+    console.log(`${type}-version`, process.versions[type])
+  }
+
 
   // monkey patch file drop API
   window.DataTransferItem.prototype.__defineGetter__("entry", function() {

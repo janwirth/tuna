@@ -44,7 +44,7 @@ async function createWindow () {
   await loadURL(mainWindow);
 
   // The above is equivalent to this:
-  await mainWindow.loadURL('app://tuna');
+  await mainWindow.loadURL('app://-');
   // and load the index.html of the app.
   // mainWindow.loadFile('index.html')
 
