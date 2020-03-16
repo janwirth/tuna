@@ -11,9 +11,6 @@ FileSystem.ensureTunaDir()
 // https://discourse.elm-lang.org/t/rangeerror-maximum-call-stack-size-exceeded-when-decoding-a-long-list/4605
 app.commandLine.appendSwitch('js-flags', '--stack-size 20000 --max-old-space-size=8192');
 
-// file server
-const serve = require('electron-serve');
-const loadURL = serve({directory: '.'});
 
 // pierce 3rd-party integrations through security layers
 // @@TODO: keep security in mind
@@ -46,10 +43,9 @@ setup(app);
 
   allowAppAsFrameAncestor(mainWindow.webContents.session)
 
-  await loadURL(mainWindow);
-
   // The above is equivalent to this:
-  await mainWindow.loadURL('app://-');
+  console.log(__dirname)
+  await mainWindow.loadURL(`file://${__dirname}/../index.html`);
   // and load the index.html of the app.
   // mainWindow.loadFile('index.html')
 

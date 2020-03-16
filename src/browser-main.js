@@ -1,10 +1,10 @@
 const Storage = require("./backend")
 const Bandcamp = require("./Bandcamp")
 const FileSystem = require("./FileSystem")
-const {register} = require("./custom-elements")
+const CustomElements = require("./custom-elements")
 const {Elm} = require("../elm-stuff/elm.js")
 
-register()
+CustomElements.register()
 
 // All of the Node.js APIs are available in the preload process.
 // It has the same sandbox as a Chrome extension.
