@@ -183,7 +183,7 @@ draggable =
 marqueeStyles =
     [ draggable
     , Element.height Element.fill
-    , Element.width (Element.fillPortion 1 |> Element.minimum 150)
+    , Element.width (Element.fillPortion 3 |> Element.minimum 150)
     , Element.Font.color Color.blue
     ]
 
@@ -191,7 +191,7 @@ viewPlayer : Queue -> Bool -> Track.Track -> String -> List (Element.Element Msg
 viewPlayer q isPlaying track src =
      [ playingMarquee (track.title ++ " - " ++ track.artist)
      , Element.el
-        [Element.width (Element.fillPortion 3 |> Element.minimum 150)]
+        [Element.width (Element.fillPortion 5 |> Element.minimum 150)]
         (player isPlaying src)
      , viewQueue q
      ]
