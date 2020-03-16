@@ -25,15 +25,15 @@ encodeSetString = Encode.set Encode.string
 decodeSetString = Decode.list Decode.string
     |> Decode.map Set.fromList
 
-decodeOrInit : Flags -> Url.Url -> Browser.Navigation.Key -> Model
-decodeOrInit flags url key =
+decodeOrInit : Flags -> Model
+decodeOrInit flags =
     let
-        userModel : UserModel
+        userModel : Model
         userModel =
-            Decode.decodeValue decodeUserModel flags.restored
+            Decode.decodeValue decodeModel flags.restored
             -- |> Debug.log "restored"
             |> Result.toMaybe
-            |> Maybe.withDefault initUserModel
+            |> Maybe.withDefault initModel
         { dropZone
             , tracks
             , tab
@@ -43,8 +43,7 @@ decodeOrInit flags url key =
             , pendingFiles
             } = userModel
     in
-        { key = key
-        , dropZone = dropZone
+        { dropZone = dropZone
         , tracks = tracks
         , pendingFiles = pendingFiles
         , infiniteList = InfiniteList.init
@@ -53,8 +52,8 @@ decodeOrInit flags url key =
         , bandcamp = bandcamp
         }
 
-initUserModel : UserModel
-initUserModel =
+initModel : Model
+initModel =
     { dropZone = DropZone.init
     , infiniteList = InfiniteList.init
     , tracks = Track.initTracks
@@ -79,12 +78,6 @@ type TransferItem =
     DroppedFile FileSystem.FileRef
     | DroppedDirectory String
 
-type alias Internals mdl =
-    { mdl
-    | key : Browser.Navigation.Key
-    }
-
-type alias Model = Internals UserModel
 type alias InfiniteList = InfiniteList.Model
 
 decodeInfiniteList = Decode.succeed InfiniteList.init
@@ -96,7 +89,7 @@ encodeInfiniteList _ = Encode.string "InfiniteList is not persisted"
 type Tab = BandcampTab | LocalTab
 
 
-type alias UserModel =
+type alias Model =
     { dropZone : DropZoneModel
     , tracks : Track.Tracks
     , bandcamp : Bandcamp.Model.Model
@@ -120,9 +113,9 @@ decodeTab =
    in
       Decode.string |> Decode.andThen recover
 
-decodeUserModel =
+decodeModel =
    Decode.map7
-      UserModel
+      Model
          ( Decode.field "dropZone" decodeDropZoneModel )
          ( Decode.field "tracks" Track.decodeTracks )
          ( Decode.field "bandcamp" Bandcamp.Model.decodeModel )
@@ -138,7 +131,7 @@ encodeTab a =
       LocalTab ->
          Encode.string "LocalTab"
 
-encodeUserModel a =
+encodeModel a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
       , ("tracks", Track.encodeTracks a.tracks)

@@ -17,16 +17,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
   // monkey patch file drop API
-  window.DataTransferItem.prototype.__defineGetter__("entry", function() {
-      const entry = this.webkitGetAsEntry()
-      return entry;
-  });
+  window.DataTransferItem.prototype.__defineGetter__
+    ( "entry"
+    , () =>  this.webkitGetAsEntry()
+    )
 
   // init and connect persistence layer
   const seed = makeSeed()
   const restored = Storage.restore()
   const flags = {restored, ...seed}
-  const app = Elm.Main.init({flags})
+  const app = Elm.Main.init({flags, node : document.getElementById('app')})
   app.ports.persist_.subscribe(Storage.persist)
   // connect file system access
   app.ports.scan_paths.subscribe(FileSystem.import_(app))

@@ -18,11 +18,16 @@ const loadURL = serve({directory: '.'});
 // pierce 3rd-party integrations through security layers
 // @@TODO: keep security in mind
 const {allowAppAsFrameAncestor, setup} = require('./security.js')
-setup(app)
+setup(app);
 
 
 
-async function createWindow () {
+(async () =>  {
+  await app.whenReady()
+
+  app.removeAsDefaultProtocolClient('app')
+  app.setAsDefaultProtocolClient('app')
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -50,13 +55,7 @@ async function createWindow () {
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools()
-}
-
-
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+})();
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {

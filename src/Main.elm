@@ -44,7 +44,7 @@ port bandcamp_import : Int -> Cmd msg
 
 persist : Model -> Cmd msg
 persist =
-    Model.encodeUserModel >> persist_
+    Model.encodeModel >> persist_
 
 uriDecorder : Decode.Decoder DropPayload
 uriDecorder =
@@ -77,13 +77,11 @@ uriDecorder =
 
 main : Platform.Program Model.Flags Model Msg
 main =
-  Browser.application
+  Browser.element
       { init = init
       , update = updateWithHooks
       , view = view
       , subscriptions = subscriptions
-      , onUrlChange = always UrlChanged
-      , onUrlRequest = always UrlRequested
       }
 
 updateWithHooks msg model =
@@ -94,10 +92,10 @@ updateWithHooks msg model =
 
 
 
-init : Model.Flags -> Url.Url -> Browser.Navigation.Key -> (Model.Model, Cmd Msg)
-init flags url key =
+init : Model.Flags -> (Model.Model, Cmd Msg)
+init flags =
     let
-        decoded = Model.decodeOrInit flags url key
+        decoded = Model.decodeOrInit flags
         cmd = Bandcamp.initCmd decoded.bandcamp
             |> Cmd.map Msg.BandcampMsg
     in
@@ -186,15 +184,16 @@ update msg model =
 -- VIEW
 
 
-view : Model -> Browser.Document Msg
+view : Model -> Html.Html Msg
 view model =
     let
         layout =
             Element.layout
                 ([Element.clipY, Element.scrollbarY, jetMono, Element.height Element.fill])
-        body = model |> view_ |> layout |> List.singleton
+        body = model |> view_ |> layout
     in
-        {title = "Tuna", body = body}
+        body
+
 view_ : Model -> Element.Element Msg
 view_ model =
     let
