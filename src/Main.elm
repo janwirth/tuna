@@ -121,7 +121,7 @@ importHook msg model =
         -- add new files from bandcamp
         BandcampMsg (Bandcamp.DataRetrieved (Ok library)) ->
             {model | tracks = model.tracks ++ Bandcamp.toTracks model.bandcamp}
-        BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) -> Debug.todo "Link downloaded files to tracks"
+        BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) -> model
         _ -> model
 
 update : Msg -> Model.Model -> (Model.Model, Cmd Msg)

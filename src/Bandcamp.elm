@@ -216,9 +216,6 @@ update msg model =
                     , Cmd.none
                     )
                 Err e ->
-                    let
-                        _ = Debug.log "err" e
-                    in
                         (model, Cmd.none)
         DownloaderMsg msg_ ->
             let
