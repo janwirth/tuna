@@ -48,6 +48,10 @@ itemView playback _ listIdx track =
                 Html.button playButtonAttribs [Html.text "▶️"]
         playButtonAttribs =
             [Html.Events.onClick (Clicked track.id)]
+        sourceHint = case track.source of
+            Track.BandcampHeart _ _ -> Html.text "💙"
+            Track.BandcampPurchase _ _ -> Html.text "💲"
+            Track.LocalFile _ -> Html.text "📁"
         title = Html.div [Html.Attributes.class "title"] [Html.text track.title]
         artist = Html.div [Html.Attributes.class "artist"] [Html.text track.artist]
         album = Html.div [Html.Attributes.class "album"] [Html.text track.album]
@@ -58,7 +62,9 @@ itemView playback _ listIdx track =
                 , title
                 , artist
                 , album
-                , tagsInput]
+                , sourceHint
+                , tagsInput
+                ]
     in
         actualItem
 
@@ -259,6 +265,7 @@ resolveSource : Model.Model -> Track.TrackSource -> String
 resolveSource {bandcamp, tracks} source =
     case source of
         (Track.BandcampPurchase playbackUrl purchase_id) -> playbackUrl
+        (Track.BandcampHeart playbackUrl purchase_id) -> playbackUrl
         (Track.LocalFile {path}) -> fileUri path
 
 fileUri path =

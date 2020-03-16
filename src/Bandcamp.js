@@ -29,7 +29,7 @@ const connect = app => async cookie => {
   console.log(items)
   // add trackslists
   items.forEach(i => {
-      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists[i.item_id] || []
+      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists["p" + i.item_id] || []
   })
   const relevant = {items, redownload_urls}
   console.log(relevant.items)

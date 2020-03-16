@@ -4,6 +4,12 @@ const mime = require('mime-types')
 const mm = require('music-metadata')
 var recursive = require("recursive-readdir");
 var Queue = require('better-queue');
+const revisionHash = require('rev-hash');
+ 
+const hashFile = path => {
+        const file = fs.readFileSync(path)
+        return revisionHash(file)
+    }
 
 const tunaDir = pathUtil.join(require('os').homedir(), '.tuna')
 const ensureTunaDir = () =>
@@ -31,7 +37,7 @@ const processOne = async path => {
         , ...meta.common
         , track : {no: null}
         , tags
-        , hash : await hasha.fromFile(path)
+        , hash : hashFile(path)
         }
     return final
 }

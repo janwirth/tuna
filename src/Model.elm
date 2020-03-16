@@ -27,31 +27,10 @@ decodeSetString = Decode.list Decode.string
 
 decodeOrInit : Flags -> Model
 decodeOrInit flags =
-    let
-        userModel : Model
-        userModel =
-            Decode.decodeValue decodeModel flags.restored
-            -- |> Debug.log "restored"
-            |> Result.toMaybe
-            |> Maybe.withDefault initModel
-        { dropZone
-            , tracks
-            , tab
-            , player
-            , bandcamp
-            , infiniteList
-            , pendingFiles
-            } = userModel
-    in
-        { dropZone = dropZone
-        , tracks = tracks
-        , pendingFiles = pendingFiles
-        , infiniteList = InfiniteList.init
-        , tab = tab
-        , player = player
-        , bandcamp = bandcamp
-        }
-
+    Decode.decodeValue decodeModel flags.restored
+    -- |> Debug.log "restored"
+    |> Result.toMaybe
+    |> Maybe.withDefault initModel
 initModel : Model
 initModel =
     { dropZone = DropZone.init
@@ -61,6 +40,8 @@ initModel =
     , pendingFiles = Set.empty
     , player = Player.init
     , bandcamp = Bandcamp.Model.initModel
+    , quickTag = "❤️"
+    , quickTagOnly = False
     }
 
 type alias DropPayload = List TransferItem
@@ -97,9 +78,24 @@ type alias Model =
     , player : Player.Model
     , pendingFiles : Set String
     , infiniteList : InfiniteList
+    , quickTag : String
+    , quickTagOnly : Bool
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
+decodeModel =
+   Decode.succeed
+      Model
+         |> Extra.andMap (Decode.field "dropZone" decodeDropZoneModel)
+         |> Extra.andMap (Decode.field "tracks" Track.decodeTracks)
+         |> Extra.andMap (Decode.field "bandcamp" Bandcamp.Model.decodeModel)
+         |> Extra.andMap (Decode.field "tab" decodeTab)
+         |> Extra.andMap (Decode.field "player" Player.decodeModel)
+         |> Extra.andMap (Decode.field "pendingFiles" decodeSetString)
+         |> Extra.andMap (Decode.field "infiniteList" decodeInfiniteList)
+         |> Extra.andMap (Decode.field "quickTag" Decode.string)
+         |> Extra.andMap (Decode.field "quickTagOnly" Decode.bool)
+
 decodeTab =
    let
       recover x =
@@ -113,24 +109,6 @@ decodeTab =
    in
       Decode.string |> Decode.andThen recover
 
-decodeModel =
-   Decode.map7
-      Model
-         ( Decode.field "dropZone" decodeDropZoneModel )
-         ( Decode.field "tracks" Track.decodeTracks )
-         ( Decode.field "bandcamp" Bandcamp.Model.decodeModel )
-         ( Decode.field "tab" decodeTab )
-         ( Decode.field "player" Player.decodeModel )
-         ( Decode.field "pendingFiles" decodeSetString )
-         ( Decode.field "infiniteList" decodeInfiniteList )
-
-encodeTab a =
-   case a of
-      BandcampTab ->
-         Encode.string "BandcampTab"
-      LocalTab ->
-         Encode.string "LocalTab"
-
 encodeModel a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
@@ -140,5 +118,14 @@ encodeModel a =
       , ("player", Player.encodeModel a.player)
       , ("pendingFiles", encodeSetString a.pendingFiles)
       , ("infiniteList", encodeInfiniteList a.infiniteList)
-      ] 
+      , ("quickTag", Encode.string a.quickTag)
+      , ("quickTagOnly", Encode.bool a.quickTagOnly)
+      ]
+
+encodeTab a =
+   case a of
+      BandcampTab ->
+         Encode.string "BandcampTab"
+      LocalTab ->
+         Encode.string "LocalTab" 
 -- [generator-end]

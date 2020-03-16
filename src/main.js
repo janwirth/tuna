@@ -17,9 +17,10 @@ app.commandLine.appendSwitch('js-flags', '--stack-size 20000 --max-old-space-siz
 const {allowAppAsFrameAncestor, setup} = require('./security.js')
 setup(app);
 
+console.log(process.versions);
 
 
-(async () =>  {
+;(async () =>  {
   await app.whenReady()
 
   app.removeAsDefaultProtocolClient('app')
@@ -37,6 +38,7 @@ setup(app);
       preload: path.join(__dirname, 'browser-main.js'),
       nodeIntegration: true,
       webSecurity: false,
+      nodeIntegrationInWorker: true,
       nativeWindowOpen: true // allow elm to spawn a debugger
     }
   })

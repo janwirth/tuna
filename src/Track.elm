@@ -46,6 +46,7 @@ type alias Track =
 type TrackSource =
     LocalFile FileSystem.FileRef
   | BandcampPurchase String Bandcamp.Id.Id
+  | BandcampHeart String Bandcamp.Id.Id
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
 decodeId =
@@ -74,6 +75,11 @@ decodeTrackSourceHelp constructor =
       "BandcampPurchase" ->
          Decode.map2
             BandcampPurchase
+               ( Decode.field "A1" Decode.string )
+               ( Decode.field "A2" Bandcamp.Id.decodeId )
+      "BandcampHeart" ->
+         Decode.map2
+            BandcampHeart
                ( Decode.field "A1" Decode.string )
                ( Decode.field "A2" Bandcamp.Id.decodeId )
       other->
@@ -106,6 +112,12 @@ encodeTrackSource a =
       BandcampPurchase a1 a2->
          Encode.object
             [ ("Constructor", Encode.string "BandcampPurchase")
+            , ("A1", Encode.string a1)
+            , ("A2", Bandcamp.Id.encodeId a2)
+            ]
+      BandcampHeart a1 a2->
+         Encode.object
+            [ ("Constructor", Encode.string "BandcampHeart")
             , ("A1", Encode.string a1)
             , ("A2", Bandcamp.Id.encodeId a2)
             ]

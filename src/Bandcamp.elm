@@ -75,7 +75,7 @@ browser model =
             RemoteData.Failure e -> Element.text e
             RemoteData.Loading -> loading
             RemoteData.Success library ->
-                Element.column [Element.spacing 10] [refreshButton, viewLib library]
+                Element.column [Element.height Element.fill, Element.spacing 10, Element.clip, Element.scrollbarY] [refreshButton, viewLib library]
 
 
 viewPurchase : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> (Bandcamp.Id.Id, Bandcamp.Model.Purchase) -> Element.Element Msg
@@ -244,7 +244,9 @@ extractTracksFromPurchase (id, purchase) =
 trackInfoToTrack : Bandcamp.Model.Purchase ->  Int -> Bandcamp.Model.TrackInfo -> Track.Track
 trackInfoToTrack purchase trackNumber trackInfo =
       { title = trackInfo.title
-      , source = Track.BandcampPurchase trackInfo.playback_url purchase.item_id
+      , source = case purchase.sale_item_id of
+        Just _ -> Track.BandcampPurchase trackInfo.playback_url purchase.item_id
+        Nothing -> Track.BandcampHeart trackInfo.playback_url purchase.item_id
       , artist = trackInfo.artist
       , album = purchase.title
       , albumArtist = purchase.artist
