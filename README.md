@@ -1,7 +1,25 @@
 # Tuna
-A cross-platform app for music collectors who appreciate working with files.
+For music collectors who like files.
+
+## Features
+- [x] Quick tags
+- [x] Drop from filesystem
+    - read media tags automatically
+- [x] Bandcamp integration
+    - revision-hashed files
+- [ ] actions
+    - [ ] select one or many tracks
+    - [ ] batch-process tracks
+        - quick-tag
+        - delete
+        - enqueue
+- [ ] Queue
+    - add tracks
+    - move tracks around
+    - save as tag
 
 ## Installation
+[Download latest release](//github.com/franzskuffka/tuna/releases).
 For now you will have to clone and build it yourself.
 
 ## Running
@@ -25,10 +43,10 @@ Given a music-collecting power-user that appreciates simplicity.
 - [x] In order to play music for a longer time I want the next track to play after the current one ends
     - [x] playing a track creates a queue according to the current view (sorting / filtering etc.)
 - [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
+- [x] As a user and dev I want a testing and a user mode to not pollute my actual library while polluting
+- [x] In order to quickly create playlists I want a quick-add tag button
 - [ ] In order to quickly find specific tracks or albums I want a full-text search across all fields
 - [ ] In order to view sub-collections I want to create playlists which are essentially stored searches
-- [ ] As a user and dev I want a testing and a user mode to not pollute my actual library while polluting
-- [ ] In order to quickly create playlists I want a quick-add tag button
 - [ ] In order to enrich my music library data set I want to read additional data from source files
 - [ ] In order to tidy up my library I want powerful batch editing
 - [ ] In order to quickly navigate through my library I want keyboard support
@@ -87,3 +105,4 @@ Given a music-collecting power-user that appreciates simplicity.
 - elm app inside electron with preferably tiny native slave modules
 - bandcamp login lives inside in iframe because it requires a captcha
     - formerly: http-client-server becasue I did not know about `nodeIntegration: true`
+- proposal: keep tags in dict and use bandcamp and id3 as metadata truth
