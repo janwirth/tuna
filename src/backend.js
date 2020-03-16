@@ -1,7 +1,22 @@
+
+const process = require('process')
+
 const FileSystem = require('./FileSystem')
 const fs = require('fs')
 const path = require('path')
-const LIBRARY_FILE = path.join(FileSystem.tunaDir, 'library.json')
+
+const DEV_LIBRARY_FILE = path.join('../library.json')
+const USER_LIBRARY_FILE = path.join(FileSystem.tunaDir, 'library.json')
+
+const isDev = require('electron-is-dev');
+
+if (isDev) {
+	console.log('Running in development');
+} else {
+	console.log('Running in production');
+}
+
+const LIBRARY_FILE = isDev ? DEV_LIBRARY_FILE : USER_LIBRARY_FILE
 
 // methods
 const restore = () => {

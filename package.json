@@ -9,7 +9,7 @@
     "elm": "elm make --debug src/Main.elm --output elm-stuff/elm.js && npm run monkey-patch",
     "elm-optimize": "elm make --optimize src/Main.elm --output elm-stuff/elm.js && npm run monkey-patch",
     "monkey-patch": "sh monkey-patch.sh",
-    "electron": "electron .",
+    "electron": "electron . --debug",
     "build": "npm run elm-optimize && electron-builder"
   },
   "electronDownload": {
@@ -27,6 +27,7 @@
     "better-queue": "^3.8.10",
     "concurrently": "^5.1.0",
     "decompress-zip": "^0.2.2",
+    "electron-is-dev": "^1.1.0",
     "electron-reload": "^1.5.0",
     "electron-root-path": "^1.0.16",
     "electron-serve": "^0.4.1",
