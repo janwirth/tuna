@@ -118,7 +118,7 @@ importHook msg model =
     case msg of
         -- add new files from bandcamp
         BandcampMsg (Bandcamp.DataRetrieved (Ok library)) ->
-            {model | tracks = model.tracks ++ Bandcamp.toTracks model.bandcamp}
+            {model | tracks = model.tracks ++ Bandcamp.toTracks model.bandcamp |> List.Extra.uniqueBy .id}
         BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) -> model
         _ -> model
 

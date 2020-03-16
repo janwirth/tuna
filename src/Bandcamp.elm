@@ -40,10 +40,12 @@ type Msg =
     CookieRetrieved Bandcamp.Model.Cookie
   | DataRetrieved (Result Decode.Error Bandcamp.Model.Library)
   | DownloaderMsg Bandcamp.Downloader.Msg
+  | RefreshRequested
 
 browser : Bandcamp.Model.Model -> Element.Element Msg
 browser model =
     let
+        refreshButton = Element.Input.button [] {onPress = Just RefreshRequested, label = Element.text "refresh"}
         loading =
             Element.paragraph
                 [Element.padding 50, Element.Font.center]
@@ -73,7 +75,7 @@ browser model =
             RemoteData.Failure e -> Element.text e
             RemoteData.Loading -> loading
             RemoteData.Success library ->
-                viewLib library
+                Element.column [Element.spacing 10] [refreshButton, viewLib library]
 
 
 viewPurchase : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> (Bandcamp.Id.Id, Bandcamp.Model.Purchase) -> Element.Element Msg
@@ -138,10 +140,13 @@ decodeTrackInfo =
     Decode.map4 Bandcamp.Model.TrackInfo
         (Decode.field "title" Decode.string)
         (Decode.field "artist" Decode.string)
-        (Decode.at ["file", "mp3-v0"] Decode.string)
+        decodeStreamUrl
         (Decode.field "id" Decode.int |> Decode.map String.fromInt)
 
-
+{-| The stream URL might be mp3-v0 or mp3-320 -}
+decodeStreamUrl : Decode.Decoder String
+decodeStreamUrl =
+    Decode.field "file" <| Decode.oneOf [Decode.field "mp3-128" Decode.string, Decode.field "mp3-v0" Decode.string]
 extractModelFromBlob : Decode.Decoder Bandcamp.Model.Library
 extractModelFromBlob =
     let
@@ -151,11 +156,12 @@ extractModelFromBlob =
 
         extractPurchase : Decode.Decoder Bandcamp.Model.Purchase
         extractPurchase =
-            Decode.map6 Bandcamp.Model.Purchase
+            Decode.map7 Bandcamp.Model.Purchase
                 (Decode.field "item_title" Decode.string)
                 (Decode.field "band_name" Decode.string)
                 (Decode.field "item_art_id" Decode.int)
-                (Decode.field "sale_item_id" Decode.int |> Decode.map Bandcamp.Id.fromPort)
+                (Decode.field "item_id" Decode.int |> Decode.map Bandcamp.Id.fromPort)
+                (Decode.field "sale_item_id" (Decode.maybe Decode.int |> Decode.map (Maybe.map Bandcamp.Id.fromPort)))
                 (Decode.field "tralbum_type" (Decode.string |> Decode.andThen matchType))
                 (decodeTrackInfos)
 
@@ -206,6 +212,11 @@ authElement =
 update : Msg -> Bandcamp.Model.Model -> (Bandcamp.Model.Model, Cmd Msg)
 update msg model =
     case msg of
+        RefreshRequested ->
+            (model, case model.cookie of
+                Nothing -> Cmd.none
+                Just (Bandcamp.Model.Cookie cookie) -> bandcamp_out_connection_requested(cookie)
+            )
         CookieRetrieved (Bandcamp.Model.Cookie c) ->
             ({model | cookie = Just (Bandcamp.Model.Cookie c)}
             , fetchLatestLibrary c)

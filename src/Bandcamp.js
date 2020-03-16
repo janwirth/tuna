@@ -19,11 +19,17 @@ const connect = app => async cookie => {
   const moreResponse = await getRest(cookie, initData.identities.fan.id, collectionData.collection_data.last_token)
   const more = await moreResponse.json()
   const redownload_urls = {...collectionData.collection_data.redownload_urls, ...more.redownload_urls}
-  const items = [...Object.values(collectionData.item_cache.collection), ...more.items]
-  const tracklists = {...collectionData.tracklists.collection, ...more.tracklists}
+  const items = [...Object.values(collectionData.item_cache.wishlist), ...Object.values(collectionData.item_cache.collection), ...more.items]
+  const tracklists =
+    { ...collectionData.tracklists.wishlist
+    , ...collectionData.tracklists.collection
+    , ...more.tracklists
+    }
+  console.log(tracklists)
+  console.log(items)
   // add trackslists
   items.forEach(i => {
-      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists['p' + i.item_id] || []
+      i.tracks = tracklists[i.tralbum_type + i.item_id] || tracklists[i.item_id] || []
   })
   const relevant = {items, redownload_urls}
   console.log(relevant.items)

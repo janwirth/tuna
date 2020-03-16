@@ -114,6 +114,7 @@ type alias Purchase =
     , artist : String
     , artwork: Int
     , item_id : Bandcamp.Id.Id
+    , sale_item_id : Maybe Bandcamp.Id.Id
     , purchase_type : PurchaseType
     , tracks : List TrackInfo
     }
@@ -219,12 +220,13 @@ decodeModel =
          ( Decode.field "downloads" decodeDownloads )
 
 decodePurchase =
-   Decode.map6
+   Decode.map7
       Purchase
          ( Decode.field "title" Decode.string )
          ( Decode.field "artist" Decode.string )
          ( Decode.field "artwork" Decode.int )
          ( Decode.field "item_id" Bandcamp.Id.decodeId )
+         ( Decode.field "sale_item_id" (Decode.maybe Bandcamp.Id.decodeId) )
          ( Decode.field "purchase_type" decodePurchaseType )
          ( Decode.field "tracks" (Decode.list decodeTrackInfo) )
 
@@ -315,6 +317,13 @@ encodeLoadedModel a =
       , ("cookie", encodeMaybeCookie a.cookie)
       ]
 
+encodeMaybeBandcamp_Id_Id a =
+   case a of
+      Just b->
+         Bandcamp.Id.encodeId b
+      Nothing->
+         Encode.null
+
 encodeMaybeCookie a =
    case a of
       Just b->
@@ -342,6 +351,7 @@ encodePurchase a =
       , ("artist", Encode.string a.artist)
       , ("artwork", Encode.int a.artwork)
       , ("item_id", Bandcamp.Id.encodeId a.item_id)
+      , ("sale_item_id", encodeMaybeBandcamp_Id_Id a.sale_item_id)
       , ("purchase_type", encodePurchaseType a.purchase_type)
       , ("tracks", (Encode.list encodeTrackInfo) a.tracks)
       ]

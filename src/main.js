@@ -45,6 +45,7 @@ setup(app);
 
   // The above is equivalent to this:
   console.log(__dirname)
+  // we do not need path.join here because it is a URL that is loaded, not a path :)
   await mainWindow.loadURL(`file://${__dirname}/../index.html`);
   // and load the index.html of the app.
   // mainWindow.loadFile('index.html')

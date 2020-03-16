@@ -5,8 +5,9 @@ const FileSystem = require('./FileSystem')
 const fs = require('fs')
 const path = require('path')
 
-const DEV_LIBRARY_FILE = path.join('../library.json')
-const USER_LIBRARY_FILE = path.join(FileSystem.tunaDir, 'library.json')
+const LIBRARY_FILE_NAME = 'library.json'
+const DEV_LIBRARY_FILE = LIBRARY_FILE_NAME
+const USER_LIBRARY_FILE = path.join(FileSystem.tunaDir, LIBRARY_FILE_NAME)
 
 const isDev = require('electron-is-dev');
 
@@ -17,6 +18,7 @@ if (isDev) {
 }
 
 const LIBRARY_FILE = isDev ? DEV_LIBRARY_FILE : USER_LIBRARY_FILE
+console.log('using library:', LIBRARY_FILE)
 
 // methods
 const restore = () => {
