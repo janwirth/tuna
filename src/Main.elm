@@ -125,6 +125,8 @@ importHook msg model =
 update : Msg -> Model.Model -> (Model.Model, Cmd Msg)
 update msg model =
   case msg of
+    ToggleQuickTag -> ({model | quickTagOnly = not model.quickTagOnly}, Cmd.none)
+    SetQuickTag quickTag -> ({model | quickTag = quickTag}, Cmd.none)
     BandcampMsg bmsg ->
         let
             (b, cmd) = Bandcamp.update bmsg model.bandcamp

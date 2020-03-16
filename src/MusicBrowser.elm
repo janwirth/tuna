@@ -34,9 +34,31 @@ type ItemMsg =
 targetValue : Decode.Decoder String
 targetValue = Decode.at ["target", "value" ] Decode.string
 
-itemView : Maybe Track.Id -> Int -> Int -> Track.Track -> Html.Html ItemMsg
-itemView playback _ listIdx track =
+itemView : Model.Model -> Maybe Track.Id -> Int -> Int -> Track.Track -> Html.Html ItemMsg
+itemView model playback _ listIdx track =
     let
+        customTags : Set.Set String
+        customTags = String.split " " track.tags |> Set.fromList
+        tagsWithoutQuick : String
+        tagsWithoutQuick =
+            Set.remove model.quickTag customTags
+            |> Set.toList
+            |> String.join " "
+
+        quickTagBadge : Html.Html ItemMsg
+        quickTagBadge =
+            let
+                active : Bool
+                active =
+                    Set.member model.quickTag customTags
+                toggled =
+                    String.join " " <| Set.toList <| if active
+                        then Set.remove model.quickTag customTags
+                        else Set.insert model.quickTag customTags
+            in
+                Html.button
+                    [Html.Events.onClick <| SetTag track.id toggled] [Html.text model.quickTag]
+
         height = Html.Attributes.style "height" "20px"
         class =
             Html.Attributes.class
@@ -63,6 +85,7 @@ itemView playback _ listIdx track =
                 , artist
                 , album
                 , sourceHint
+                , quickTagBadge
                 , tagsInput
                 ]
     in
@@ -77,7 +100,7 @@ view model =
         config : InfiniteList.Config Track.Track ItemMsg
         config =
             InfiniteList.config
-                { itemView = itemView playback
+                { itemView = itemView model playback
                 , itemHeight = InfiniteList.withConstantHeight 20
                 , containerHeight = 1000
                 }
@@ -91,11 +114,14 @@ view model =
                 count -> Element.text (String.fromInt count)
 
 
-        allTracks = model.tracks
+        visibleTracks =
+            case model.quickTagOnly of
+                True -> List.filter (\{tags} -> String.contains model.quickTag tags) model.tracks
+                False -> model.tracks
         bcBrowser = Bandcamp.browser
                 model.bandcamp
         tracksList =
-            case List.isEmpty allTracks of
+            case List.isEmpty visibleTracks of
                 True ->
                     Element.paragraph
                         [Element.Font.center, Element.padding 50]
@@ -104,7 +130,7 @@ view model =
                     let
                         makeQueue : Track.Id -> Player.Queue
                         makeQueue id =
-                            model.tracks
+                            visibleTracks
                             |> List.Extra.splitWhen (\someTrack -> id == someTrack.id)
                             |> Maybe.andThen (Tuple.second >> List.map .id >> List.Zipper.fromList)
                             |> Maybe.withDefault (List.Zipper.singleton id)
@@ -118,7 +144,7 @@ view model =
 
                         items : List (Html.Html Msg.Msg)
                         items =
-                                [ InfiniteList.view config model.infiniteList allTracks
+                                [ InfiniteList.view config model.infiniteList visibleTracks
                                 |> Html.map processItemMsg
                                 ]
                         infList =
@@ -145,7 +171,29 @@ view model =
             [Element.width Element.fill, Element.height Element.fill, Element.clipY, Element.scrollbarY]
             [secondHeader model, content]
 
-secondHeader model = Element.row [Element.padding 10, Element.width Element.fill] [tabs model, downloads model]
+secondHeader model =
+    Element.row
+        [Element.padding 10, Element.width Element.fill, Element.spacing 10]
+        [ quickTagControls model
+        , tabs model
+        , downloads model
+        ]
+
+quickTagControls : Model.Model -> Element.Element Msg.Msg
+quickTagControls model =
+    Element.row [Element.spacing 10] [
+        Element.Input.text [Element.width (Element.px 100)]
+            { placeholder = Just <| Element.Input.placeholder [] <| Element.text "e.g. genre:house"
+            , text = model.quickTag
+            , onChange = Msg.SetQuickTag
+            , label = Element.Input.labelLeft [Element.centerY] (Element.text "Quicktag")
+            }
+        , Element.Input.button
+            []
+            { label = Element.text "toggle"
+            , onPress = Just Msg.ToggleQuickTag
+            }
+        ]
 
 downloads model =
     let
@@ -215,46 +263,6 @@ progressCircle pct numberOfDls =
         Element.html svg
         |> Element.el [Element.inFront count]
 
-viewTrack : Model.Model -> Track.Id -> Track.Track -> Element.Element Track.Id
-viewTrack model trackId track =
-    resolveSource model track.source
-    |> viewTrackHelp model trackId track
-
-
-
-viewTrackHelp : Model.Model -> Track.Id -> Track.Track -> String -> Element.Element Track.Id
-viewTrackHelp model id track src =
-    let
-        attribs = [Element.Events.onClick id
-            , Element.padding 10
-            , Element.spacing 10
-            , Element.width Element.fill
-            , Element.mouseOver [Element.Background.color Color.blueTransparent]
-            , Element.pointer
-            ]
-
-        playingMarkerBackground =
-            if Player.getCurrent model.player == Just id
-                then Element.Background.color Color.blue
-                else Element.Background.color Color.white
-        playingMarker =
-            Element.el
-                [ Element.width <| Element.px 8
-                , Element.height <| Element.px 8
-                , Element.Border.rounded 4
-                , Element.moveUp 1 -- baseline correction
-                , Element.centerY
-                , playingMarkerBackground
-                ]
-                Element.none
-        content =
-            [ playingMarker
-            , Element.paragraph [Element.htmlAttribute (Html.Attributes.style "white-space" "nowrap"), Element.clip, Element.width Element.fill] [Element.text track.title]
-            -- , Element.el [] (Element.text fileRef.path)
-            ]
-    in
-        Element.row attribs content
-
 resolveTrack : Model.Model -> Track.Id -> Result String (Track.Track, String)
 resolveTrack model id =
     case List.Extra.find (\someTrack -> someTrack.id == id) model.tracks of
@@ -296,8 +304,9 @@ viewTab model label tab =
     in
         Element.Input.button attribs params
 
-tabs model = Element.row [Element.spacing 10, Element.centerX] [
-        viewTab model "Local" LocalTab
+tabs model =
+    Element.row [Element.spacing 10, Element.alignLeft]
+    [  viewTab model "Local" LocalTab
       , viewTab model "Bandcamp" BandcampTab
     ]
 

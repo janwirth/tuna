@@ -31,3 +31,6 @@ type Msg
   | UrlChanged
 
   | InfiniteListMsg InfiniteList.Model
+
+  | SetQuickTag String
+  | ToggleQuickTag
