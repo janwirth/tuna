@@ -5,11 +5,12 @@
   "main": "src/main.js",
   "author": "Jan Wirth <contact@jan-wirth.de>",
   "scripts": {
-    "start": "nodemon --exec \"npm run elm && npm run monkey-patch && npm run electron\" -w src -e elm,js",
-    "elm": "elm make --debug src/Main.elm --output elm-stuff/elm.js",
+    "start": "nodemon --exec \"npm run elm && npm run electron\" -w src -e elm,js",
+    "elm": "elm make --debug src/Main.elm --output elm-stuff/elm.js && npm run monkey-patch",
+    "elm-optimize": "elm make --optimize src/Main.elm --output elm-stuff/elm.js && npm run monkey-patch",
     "monkey-patch": "sh monkey-patch.sh",
     "electron": "electron .",
-    "build": "elm make src/Main.elm --optimize && electron-builder"
+    "build": "npm run elm-optimize && electron-builder"
   },
   "electronDownload": {
     "cache": "~/home/.cache/electron-builder"
