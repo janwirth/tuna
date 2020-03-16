@@ -9,7 +9,7 @@ const rimraf = require('rimraf-promise')
 const {fetchAndSlice} = require('./help')
 // Elm orchestrates all these functions.
 const rootPath = require('electron-root-path').rootPath;
-const BANDCAMP_DOWNLOAD_DIR = "bandcamp"
+const BANDCAMP_DOWNLOAD_DIR = path.join(FileSystem.tunaDir, "bandcamp-downloads")
 
 // fetch the asset URl from bandcamp
 const get_asset_url = async (cookie, encode_url) => {

@@ -5,6 +5,11 @@ const mm = require('music-metadata')
 var recursive = require("recursive-readdir");
 var Queue = require('better-queue');
 
+const tunaDir = pathUtil.join(require('os').homedir(), 'tuna')
+const ensureTunaDir = () =>
+    fs.existsSync(tunaDir)
+    ? console.info('not my first startup')
+    : fs.mkdirSync(targetDir, { recursive: true })
 
 // read files inside directories and return file ref
 const import_ = app => async paths => {
@@ -73,4 +78,4 @@ const readAllAudioFiles = path => new Promise ((resolve, reject) => {
 
 const getMime = file => mime.lookup(file)
 
-module.exports = {import_, getMime}
+module.exports = {import_, getMime, ensureTunaDir, tunaDir}

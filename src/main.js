@@ -4,34 +4,12 @@ const path = require('path')
 require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.json/, argv: []});
 const { session } = require('electron')
 const { register } = require('./custom-elements')
+const FileSystem = require('./FileSystem')
+FileSystem.ensureTunaDir()
 
 // increase memory limit to prevent elm debug from choking on large lists
 // https://discourse.elm-lang.org/t/rangeerror-maximum-call-stack-size-exceeded-when-decoding-a-long-list/4605
 app.commandLine.appendSwitch('js-flags', '--stack-size 20000 --max-old-space-size=8192');
-
-const os = require('os');
-
-const platforms = {
-  WINDOWS: 'WINDOWS',
-  MAC: 'MAC',
-  LINUX: 'LINUX',
-  SUN: 'SUN',
-  OPENBSD: 'OPENBSD',
-  ANDROID: 'ANDROID',
-  AIX: 'AIX',
-};
-
-const platformsNames = {
-  win32: platforms.WINDOWS,
-  darwin: platforms.MAC,
-  linux: platforms.LINUX,
-  sunos: platforms.SUN,
-  openbsd: platforms.OPENBSD,
-  android: platforms.ANDROID,
-  aix: platforms.AIX,
-};
-
-const currentPlatform = platformsNames[os.platform()];
 
 // file server
 const serve = require('electron-serve');
@@ -54,7 +32,7 @@ async function createWindow () {
     // In this case, I am the user - the developer and my editor losing focus annoys me :sad-face:
 
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'browser-main.js'),
       nodeIntegration: true,
       webSecurity: false,
       nativeWindowOpen: true // allow elm to spawn a debugger

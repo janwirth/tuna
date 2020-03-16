@@ -1,5 +1,7 @@
-const LIBRARY_FILE = './library.json'
+const FileSystem = require('./FileSystem')
 const fs = require('fs')
+const path = require('path')
+const LIBRARY_FILE = path.join(FileSystem.tunaDir, 'library.json')
 
 // methods
 const restore = () => {
