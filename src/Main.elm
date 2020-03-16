@@ -101,9 +101,6 @@ init flags =
     in
         (decoded, cmd)
 
-
-ensureUnique = List.Extra.uniqueBy .path
-
 hooks msg (model, cmd) =
     let
         im = importHook msg model
@@ -114,11 +111,14 @@ hooks msg (model, cmd) =
 persistHook msg model =
     (model, persist model)
 
+
+ensureUnique = List.Extra.uniqueBy .id
+
 importHook msg model =
     case msg of
         -- add new files from bandcamp
         BandcampMsg (Bandcamp.DataRetrieved (Ok library)) ->
-            {model | tracks = model.tracks ++ Bandcamp.toTracks model.bandcamp |> List.Extra.uniqueBy .id}
+            {model | tracks = model.tracks ++ Bandcamp.toTracks model.bandcamp |> ensureUnique}
         BandcampMsg (Bandcamp.DownloaderMsg (Bandcamp.Downloader.FilesScanned scanResult)) -> model
         _ -> model
 
@@ -160,6 +160,7 @@ update msg model =
             Ok newAudioFiles ->
                 let
                     tracks = Track.addLocal newAudioFiles model.tracks
+                        |> ensureUnique
                     pendingFiles = List.foldl (\f pending -> Set.remove f.path pending) model.pendingFiles newAudioFiles
                     mdl =
                         { model
