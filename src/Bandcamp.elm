@@ -79,7 +79,7 @@ browser model =
 
 
 viewPurchase : Bandcamp.Model.Downloads -> Bandcamp.Model.Library -> (Bandcamp.Id.Id, Bandcamp.Model.Purchase) -> Element.Element Msg
-viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
+viewPurchase downloads library (_, {title, artist, artwork, item_id, sale_item_id}) =
     let
         imgSrc =
             "https://f4.bcbits.com/img/a"
@@ -96,7 +96,10 @@ viewPurchase downloads library (id, {title, artist, artwork, item_id}) =
             Element.image
                 [Element.height (Element.px 300), Element.width (Element.px 300)]
                 {src = imgSrc, description = title}
-        viewDownloadOptions = case Bandcamp.Id.getBy item_id library.download_urls of
+
+        downloadUrl : Maybe String
+        downloadUrl = Maybe.andThen(\s_id -> Bandcamp.Id.getBy s_id library.download_urls) sale_item_id
+        viewDownloadOptions = case downloadUrl  of
             Just u ->
                 Bandcamp.Downloader.viewDownloadButton
                     downloads library
