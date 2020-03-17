@@ -175,7 +175,7 @@ view resolveTrack model =
 playingMarquee txt =
     Element.el
         marqueeStyles
-        <| Element.el [Element.centerY] <| Element.html (Html.node "marquee" [] [Html.text txt])
+        <| Element.el [Element.centerY, Element.width Element.fill] <| Element.html (Html.node "marquee" [] [Html.text txt])
 -- make this the title bar of the application
 draggable =
     Element.htmlAttribute <| Html.Attributes.style "-webkit-app-region" "drag"
