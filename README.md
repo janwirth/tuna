@@ -42,9 +42,14 @@ Given a music-collecting power-user that appreciates simplicity.
 - [x] In order to get play more music I want to connect to bandcamp
 - [x] In order to play music for a longer time I want the next track to play after the current one ends
     - [x] playing a track creates a queue according to the current view (sorting / filtering etc.)
-- [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
 - [x] As a user and dev I want a testing and a user mode to not pollute my actual library while polluting
 - [x] In order to quickly create playlists I want a quick-add tag button
+- [ ] In order to recover my taggings I want to normalize tags and include them in custom tags
+    - [ ] genre:foo
+    - [ ] bpm:123
+    - [ ] tracknumber:
+- [ ] in order to use bandcamp properly I want downloads to work reliably :angry-face:
+- [ ] In order to sync my devices / connect to my next workflow steps I want to drag and drop files out of the library
 - [ ] In order to quickly find specific tracks or albums I want a full-text search across all fields
 - [ ] In order to view sub-collections I want to create playlists which are essentially stored searches
 - [ ] In order to enrich my music library data set I want to read additional data from source files
@@ -78,7 +83,6 @@ Given a music-collecting power-user that appreciates simplicity.
     - [ ] artist, title, number, album
     - [ ] parser
 - [ ] In order to listen to my music while I am not on my computer I want to sync it with my mobile device
-- [ ] In order to sync my devices / connect to my next workflow steps I want to drag and drop files out of the library
 - [ ] In order to not lose my music I want to back it up
     - NAS?
     - backblaze?
@@ -106,3 +110,15 @@ Given a music-collecting power-user that appreciates simplicity.
 - bandcamp login lives inside in iframe because it requires a captcha
     - formerly: http-client-server becasue I did not know about `nodeIntegration: true`
 - proposal: keep tags in dict and use bandcamp and id3 as metadata truth
+
+## Random Notes / Prio
+- fix bandcamp downloads
+    - use purchase_id
+    - use bandcamp as source of truth
+    - keep tags separate from tracks
+- fix genre tag import
+- emoji picker next to track
+- next/prev
+- emoji selecte multiple emoji
+- enable drop-out
+
