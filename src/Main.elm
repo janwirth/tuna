@@ -9,6 +9,7 @@ port module Main exposing (..)
 
 import Browser
 import MusicBrowser
+import MultiInput
 import Player
 import Color
 import Browser.Navigation
@@ -125,8 +126,19 @@ importHook msg model =
 update : Msg -> Model.Model -> (Model.Model, Cmd Msg)
 update msg model =
   case msg of
-    ToggleQuickTag -> ({model | quickTagOnly = not model.quickTagOnly}, Cmd.none)
-    SetQuickTag quickTag -> ({model | quickTag = quickTag}, Cmd.none)
+    SetFilter f -> ({model | filter = f}, Cmd.none)
+    SetQuickTag msg_ ->
+            let
+                ( nextState, nextItems, nextCmd ) =
+                    MultiInput.update
+                        {separators= [",", "\n", " "]}
+                        msg_
+                        model.quickTagsInputState
+                        model.quickTags
+            in
+                ( { model | quickTags = nextItems, quickTagsInputState = nextState }
+                , Cmd.map SetQuickTag nextCmd
+                )
     BandcampMsg bmsg ->
         let
             (b, cmd) = Bandcamp.update bmsg model.bandcamp

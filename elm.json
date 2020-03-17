@@ -21,6 +21,7 @@
             "elm-community/json-extra": "4.2.0",
             "elm-community/list-extra": "8.2.3",
             "krisajenkins/remotedata": "6.0.1",
+            "larribas/elm-multi-input": "2.0.0",
             "mdgriffith/elm-ui": "1.1.5",
             "ohanhi/remotedata-http": "4.0.0",
             "proda-ai/elm-dropzone": "1.0.1",

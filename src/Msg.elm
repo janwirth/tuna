@@ -11,6 +11,8 @@ import Url
 import Browser
 import InfiniteList
 import Track
+import Set
+import MultiInput
 
 -- UPDATE
 
@@ -32,5 +34,5 @@ type Msg
 
   | InfiniteListMsg InfiniteList.Model
 
-  | SetQuickTag String
-  | ToggleQuickTag
+  | SetQuickTag MultiInput.Msg
+  | SetFilter (Maybe String)

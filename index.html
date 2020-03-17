@@ -1,5 +1,6 @@
 <html>
     <head>
+        <link rel="stylesheet" href="./src/multi-input.css">
         <style>
             * {user-select: none}
             .track {
@@ -8,8 +9,8 @@
             .track button {
                 background: none;
                 border: none;
-                font-size: 10;
-                cursor: pointer
+                cursor: pointer;
+                color: inherit
             }
             .track input {
                 background: none;
@@ -19,18 +20,21 @@
                 color: inherit;
                 font: inherit;
             }
-            .track button:hover {
+            .track .play-button {
+                font-size: 10;
+            }
+            .track .play-button:hover {
                 background: grey;
                 color: white;
+            }
+            .track .quick-tag.active {
+                font-weight: bold
             }
             .track.zebra {
                 background: #f6f6f6
             }
             .track.playing {
                 background: black;
-                color: white;
-            }
-            .track.playing button {
                 color: white;
             }
             .track .title {

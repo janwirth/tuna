@@ -4,12 +4,14 @@ import Msg
 import Bandcamp
 import FileSystem
 import Json.Decode as Decode
+import MultiInput
 
 subscriptions : Model.Model -> Sub Msg.Msg
 subscriptions model =
     Sub.batch
         [ Bandcamp.subscriptions model.bandcamp |> Sub.map Msg.BandcampMsg
         , filesystemSub
+        , MultiInput.subscriptions model.quickTagsInputState |> Sub.map Msg.SetQuickTag
         ]
 
 

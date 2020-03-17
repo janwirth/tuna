@@ -16,6 +16,7 @@ import Url
 import Player
 import Set exposing (Set)
 import InfiniteList
+import MultiInput
 
 import Browser.Navigation
 
@@ -40,8 +41,9 @@ initModel =
     , pendingFiles = Set.empty
     , player = Player.init
     , bandcamp = Bandcamp.Model.initModel
-    , quickTag = "❤️"
-    , quickTagOnly = False
+    , quickTags = List.singleton "❤️"
+    , quickTagsInputState = MultiInput.init "quick-tags-input"
+    , filter = Nothing
     }
 
 type alias DropPayload = List TransferItem
@@ -60,9 +62,12 @@ type TransferItem =
     | DroppedDirectory String
 
 type alias InfiniteList = InfiniteList.Model
-
 decodeInfiniteList = Decode.succeed InfiniteList.init
 encodeInfiniteList _ = Encode.string "InfiniteList is not persisted"
+
+type alias MultiInputState = MultiInput.State
+encodeMultiInputState _ = Encode.null
+decodeMultiInputState = Decode.succeed <| MultiInput.init "quick-tags-input-field"
 
 
 -- [generator-start]
@@ -78,8 +83,9 @@ type alias Model =
     , player : Player.Model
     , pendingFiles : Set String
     , infiniteList : InfiniteList
-    , quickTag : String
-    , quickTagOnly : Bool
+    , quickTags : List String
+    , filter : Maybe String
+    , quickTagsInputState : MultiInputState
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
@@ -93,8 +99,9 @@ decodeModel =
          |> Extra.andMap (Decode.field "player" Player.decodeModel)
          |> Extra.andMap (Decode.field "pendingFiles" decodeSetString)
          |> Extra.andMap (Decode.field "infiniteList" decodeInfiniteList)
-         |> Extra.andMap (Decode.field "quickTag" Decode.string)
-         |> Extra.andMap (Decode.field "quickTagOnly" Decode.bool)
+         |> Extra.andMap (Decode.field "quickTags" (Decode.list Decode.string))
+         |> Extra.andMap (Decode.field "filter" (Decode.maybe Decode.string))
+         |> Extra.andMap (Decode.field "quickTagsInputState" decodeMultiInputState)
 
 decodeTab =
    let
@@ -109,6 +116,13 @@ decodeTab =
    in
       Decode.string |> Decode.andThen recover
 
+encodeMaybeString a =
+   case a of
+      Just b->
+         Encode.string b
+      Nothing->
+         Encode.null
+
 encodeModel a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
@@ -118,8 +132,9 @@ encodeModel a =
       , ("player", Player.encodeModel a.player)
       , ("pendingFiles", encodeSetString a.pendingFiles)
       , ("infiniteList", encodeInfiniteList a.infiniteList)
-      , ("quickTag", Encode.string a.quickTag)
-      , ("quickTagOnly", Encode.bool a.quickTagOnly)
+      , ("quickTags", (Encode.list Encode.string) a.quickTags)
+      , ("filter", encodeMaybeString a.filter)
+      , ("quickTagsInputState", encodeMultiInputState a.quickTagsInputState)
       ]
 
 encodeTab a =

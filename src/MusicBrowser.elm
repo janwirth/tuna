@@ -26,6 +26,7 @@ import Html.Events
 import Set
 import InfiniteList
 import Json.Decode as Decode
+import MultiInput
 
 type ItemMsg =
     SetTag Track.Id String
@@ -37,27 +38,27 @@ targetValue = Decode.at ["target", "value" ] Decode.string
 itemView : Model.Model -> Maybe Track.Id -> Int -> Int -> Track.Track -> Html.Html ItemMsg
 itemView model playback _ listIdx track =
     let
-        customTags : Set.Set String
-        customTags = String.split " " track.tags |> Set.fromList
-        tagsWithoutQuick : String
-        tagsWithoutQuick =
-            Set.remove model.quickTag customTags
-            |> Set.toList
-            |> String.join " "
+        customTags : List String
+        customTags =
+            String.split " " track.tags
 
-        quickTagBadge : Html.Html ItemMsg
-        quickTagBadge =
+        quickTagBadge : String -> Html.Html ItemMsg
+        quickTagBadge qt =
             let
                 active : Bool
                 active =
-                    Set.member model.quickTag customTags
+                    List.member qt customTags
+                toggled : List String
                 toggled =
-                    String.join " " <| Set.toList <| if active
-                        then Set.remove model.quickTag customTags
-                        else Set.insert model.quickTag customTags
+                    if active
+                        then List.filter ((==) qt >> not) customTags
+                        else customTags ++ [qt]
             in
                 Html.button
-                    [Html.Events.onClick <| SetTag track.id toggled] [Html.text model.quickTag]
+                    [ Html.Events.onClick <| SetTag track.id (String.join " " toggled)
+                    , Html.Attributes.class (if active then "active" else "")
+                    ]
+                    [Html.text qt]
 
         height = Html.Attributes.style "height" "20px"
         class =
@@ -69,11 +70,16 @@ itemView model playback _ listIdx track =
         playButton =
                 Html.button playButtonAttribs [Html.text "▶️"]
         playButtonAttribs =
-            [Html.Events.onClick (Clicked track.id)]
+            [Html.Events.onClick (Clicked track.id), Html.Attributes.class "play-button"]
         sourceHint = case track.source of
             Track.BandcampHeart _ _ -> Html.text "💙"
             Track.BandcampPurchase _ _ -> Html.text "💲"
             Track.LocalFile _ -> Html.text "📁"
+        viewQuickTags =
+            Html.div
+            []
+            <| List.map quickTagBadge (model.quickTags)
+
         title = Html.div [Html.Attributes.class "title"] [Html.text track.title]
         artist = Html.div [Html.Attributes.class "artist"] [Html.text track.artist]
         album = Html.div [Html.Attributes.class "album"] [Html.text track.album]
@@ -85,11 +91,16 @@ itemView model playback _ listIdx track =
                 , artist
                 , album
                 , sourceHint
-                , quickTagBadge
+                , viewQuickTags
                 , tagsInput
                 ]
     in
         actualItem
+
+pendingFiles model =
+    case Set.size model.pendingFiles of
+        0 -> Element.none
+        count -> Element.text (String.fromInt count)
 
 view : Model.Model -> Element.Element Msg.Msg
 view model =
@@ -104,20 +115,15 @@ view model =
                 , itemHeight = InfiniteList.withConstantHeight 20
                 , containerHeight = 1000
                 }
-        localBrowser = Element.column
-            [Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
-            [{-playlists,-}pendingFiles, tracksList]
-
-        pendingFiles =
-            case Set.size model.pendingFiles of
-                0 -> Element.none
-                count -> Element.text (String.fromInt count)
+        localBrowser = Element.row
+            [Element.spacing 10, Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
+            [leftSidebar model, tracksList]
 
 
         visibleTracks =
-            case model.quickTagOnly of
-                True -> List.filter (\{tags} -> String.contains model.quickTag tags) model.tracks
-                False -> model.tracks
+            case model.filter of
+                Just someTag -> List.filter (\{tags} -> String.contains someTag tags) model.tracks
+                Nothing -> model.tracks
         bcBrowser = Bandcamp.browser
                 model.bandcamp
         tracksList =
@@ -174,26 +180,69 @@ view model =
 secondHeader model =
     Element.row
         [Element.padding 10, Element.width Element.fill, Element.spacing 10]
-        [ quickTagControls model
-        , tabs model
+        [ tabs model
         , downloads model
+        , pendingFiles model
         ]
 
-quickTagControls : Model.Model -> Element.Element Msg.Msg
-quickTagControls model =
-    Element.row [Element.spacing 10] [
-        Element.Input.text [Element.width (Element.px 100)]
-            { placeholder = Just <| Element.Input.placeholder [] <| Element.text "e.g. genre:house"
-            , text = model.quickTag
-            , onChange = Msg.SetQuickTag
-            , label = Element.Input.labelLeft [Element.centerY] (Element.text "Quicktag")
-            }
-        , Element.Input.button
-            []
-            { label = Element.text "toggle"
-            , onPress = Just Msg.ToggleQuickTag
-            }
-        ]
+
+
+leftSidebar model =
+    Element.column [Element.spacing 30, Element.height Element.fill] [
+        quickTagInput model
+      , viewFilters model
+    ]
+
+viewFilters : Model.Model -> Element.Element Msg.Msg
+viewFilters model =
+    Element.column
+        [Element.width Element.fill]
+        (Element.el [Element.paddingXY 10 5] (Element.text "Filters"):: List.map (viewFilter model) model.quickTags)
+
+viewFilter : Model.Model -> String -> Element.Element Msg.Msg
+viewFilter model tag =
+    let
+        action =
+            if active
+                then Msg.SetFilter Nothing
+                else Msg.SetFilter <| Just tag
+        active = model.filter == Just tag
+        attribs = colors ++ [Element.width Element.fill, Element.paddingXY 10 5]
+        colors =
+            if active
+                then [Element.Font.color Color.white, Element.Background.color Color.black]
+                else []
+    in
+        Element.Input.button attribs
+        { onPress = Just action
+        , label = Element.text tag
+        }
+
+
+cfg : MultiInput.ViewConfig Msg.Msg
+cfg = { placeholder = "Add"
+    , isValid = isValidTag
+    , toOuterMsg = Msg.SetQuickTag
+    }
+
+isValidTag : String -> Bool
+isValidTag str =
+    String.contains " " str || String.contains "\n" str
+    |> not
+
+quickTagInput : Model.Model -> Element.Element Msg.Msg
+quickTagInput model =
+    let
+        controls =
+            MultiInput.view
+                cfg
+                []
+                model.quickTags model.quickTagsInputState
+            |> Element.html
+        heading = Element.el [Element.paddingXY 10 5] <| Element.text "Tags"
+    in
+        Element.column [Element.width Element.fill] [heading, controls]
+
 
 downloads model =
     let
