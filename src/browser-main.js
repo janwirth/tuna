@@ -5,6 +5,7 @@ const Bandcamp = require("./Bandcamp")
 const FileSystem = require("./FileSystem")
 const CustomElements = require("./custom-elements")
 const {Elm} = require("../elm-stuff/elm.js")
+const fileUrl = require("file-url")
 
 CustomElements.register()
 
@@ -27,7 +28,8 @@ window.addEventListener('DOMContentLoaded', () => {
   // init and connect persistence layer
   const seed = makeSeed()
   const restored = Storage.restore()
-  const flags = {restored, ...seed}
+  const rootUrl = fileUrl(FileSystem.tunaDir)
+  const flags = {restored, ...seed, rootUrl}
   const app = Elm.Main.init({flags, node : document.getElementById('app')})
   app.ports.persist_.subscribe(Storage.persist)
   // connect file system access

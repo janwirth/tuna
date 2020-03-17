@@ -140,4 +140,4 @@ const unzip = ({item_id, on_complete, item_type}) => {
     })
 }
 
-module.exports = {setupPorts, complete_file_path}
+module.exports = {setupPorts, complete_file_path, BANDCAMP_DOWNLOAD_DIR}

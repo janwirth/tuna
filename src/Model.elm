@@ -5,22 +5,21 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Bandcamp
 import Bandcamp.Model
-import Time
-import Dict
+
+
 import Json.Decode.Extra as Extra
 import FileSystem
 import Track
 import Json.Decode as Decode
-import Random.Pcg.Extended
-import Url
+
+
 import Player
 import Set exposing (Set)
 import InfiniteList
 import MultiInput
 
-import Browser.Navigation
 
-type alias Flags = {restored : Decode.Value}
+type alias Flags = {restored : Decode.Value, rootUrl: String}
 
 encodeSetString = Encode.set Encode.string
 decodeSetString = Decode.list Decode.string
@@ -32,6 +31,11 @@ decodeOrInit flags =
     -- |> Debug.log "restored"
     |> Result.toMaybe
     |> Maybe.withDefault initModel
+    |> setRootUrl flags.rootUrl
+
+setRootUrl : String -> Model -> Model
+setRootUrl rootUrl model = {model | rootUrl = rootUrl}
+
 initModel : Model
 initModel =
     { dropZone = DropZone.init
@@ -44,6 +48,7 @@ initModel =
     , quickTags = List.singleton "❤️"
     , quickTagsInputState = MultiInput.init "quick-tags-input"
     , filter = Nothing
+    , rootUrl = ""
     }
 
 type alias DropPayload = List TransferItem
@@ -86,6 +91,7 @@ type alias Model =
     , quickTags : List String
     , filter : Maybe String
     , quickTagsInputState : MultiInputState
+    , rootUrl : String
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
@@ -102,6 +108,7 @@ decodeModel =
          |> Extra.andMap (Decode.field "quickTags" (Decode.list Decode.string))
          |> Extra.andMap (Decode.field "filter" (Decode.maybe Decode.string))
          |> Extra.andMap (Decode.field "quickTagsInputState" decodeMultiInputState)
+         |> Extra.andMap (Decode.field "rootUrl" Decode.string)
 
 decodeTab =
    let
@@ -135,6 +142,7 @@ encodeModel a =
       , ("quickTags", (Encode.list Encode.string) a.quickTags)
       , ("filter", encodeMaybeString a.filter)
       , ("quickTagsInputState", encodeMultiInputState a.quickTagsInputState)
+      , ("rootUrl", Encode.string a.rootUrl)
       ]
 
 encodeTab a =

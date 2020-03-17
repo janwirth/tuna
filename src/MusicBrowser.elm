@@ -2,7 +2,7 @@ module MusicBrowser exposing (view, resolveTrack)
 
 import Element
 import Element.Background
-import Element.Events
+
 import Element.Border
 import Element.Font
 import List.Extra
@@ -17,7 +17,7 @@ import Html.Attributes
 import Track
 import FileSystem
 import Bandcamp.Model
-import Bandcamp.Id
+
 import Player
 import Svg.Attributes
 import Svg
@@ -27,10 +27,12 @@ import Set
 import InfiniteList
 import Json.Decode as Decode
 import MultiInput
+import Bandcamp.SimpleDownloader
 
 type ItemMsg =
     SetTag Track.Id String
     | Clicked Track.Id
+    | SimpleDownloaderMsg Bandcamp.SimpleDownloader.Msg
 
 targetValue : Decode.Decoder String
 targetValue = Decode.at ["target", "value" ] Decode.string
@@ -86,16 +88,37 @@ itemView model playback _ listIdx track =
         actualItem =
             Html.div
                 [class, height]
-                [playButton
+                [ playButton
                 , title
                 , artist
                 , album
                 , sourceHint
+                , simpleDownloader model track
                 , viewQuickTags
                 , tagsInput
                 ]
     in
         actualItem
+
+
+simpleDownloader : Model.Model -> Track.Track -> Html.Html ItemMsg
+simpleDownloader model track =
+    case (model.bandcamp.cookie, track.source) of
+        (Just (Bandcamp.Model.Cookie cookie), Track.BandcampHeart _ _) ->
+            Bandcamp.SimpleDownloader.view
+                        cookie
+                        track.id
+                        (resolveSource model track)
+                        model.bandcamp.simpleDownloads
+                        |> Html.map SimpleDownloaderMsg
+        (Just (Bandcamp.Model.Cookie cookie), Track.BandcampPurchase _ _) ->
+            Bandcamp.SimpleDownloader.view
+                        cookie
+                        track.id
+                        (resolveSource model track)
+                        model.bandcamp.simpleDownloads
+                        |> Html.map SimpleDownloaderMsg
+        _ -> Html.text ""
 
 pendingFiles model =
     case Set.size model.pendingFiles of
@@ -147,6 +170,7 @@ view model =
                                 Clicked idx ->
                                     (makeQueue idx |> Player.SongClicked |> Msg.PlayerMsg)
                                 SetTag idx tags -> Msg.TagChanged idx tags
+                                SimpleDownloaderMsg msg_ -> Bandcamp.SimpleDownloaderMsg msg_ |> Msg.BandcampMsg
 
                         items : List (Html.Html Msg.Msg)
                         items =
@@ -315,14 +339,26 @@ progressCircle pct numberOfDls =
 resolveTrack : Model.Model -> Track.Id -> Result String (Track.Track, String)
 resolveTrack model id =
     case List.Extra.find (\someTrack -> someTrack.id == id) model.tracks of
-        Just track -> Ok (resolveSource model track.source |> (Tuple.pair track))
+        Just track -> Ok (resolveSource model track |> (Tuple.pair track))
         Nothing -> Err "Track not found"
 
-resolveSource : Model.Model -> Track.TrackSource -> String
-resolveSource {bandcamp, tracks} source =
+resolveSource : Model.Model -> Track.Track -> String
+resolveSource {bandcamp, tracks, rootUrl} {source, id} =
     case source of
-        (Track.BandcampPurchase playbackUrl purchase_id) -> playbackUrl
-        (Track.BandcampHeart playbackUrl purchase_id) -> playbackUrl
+        (Track.BandcampPurchase streamingUrl purchase_id) ->
+            Bandcamp.SimpleDownloader.getLocalUrl
+                rootUrl
+                id
+                bandcamp.simpleDownloads
+            |> Maybe.withDefault streamingUrl
+
+        (Track.BandcampHeart streamingUrl purchase_id) ->
+            Bandcamp.SimpleDownloader.getLocalUrl
+                rootUrl
+                id
+                bandcamp.simpleDownloads
+            |> Maybe.withDefault streamingUrl
+
         (Track.LocalFile {path}) -> fileUri path
 
 fileUri path =

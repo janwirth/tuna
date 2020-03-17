@@ -1,5 +1,6 @@
 // A very illegal and hacky adapter for bandcamp
 const Downloader = require("./Bandcamp/Downloader")
+const SimpleDownloader = require("./Bandcamp/SimpleDownloader")
 const {fetchAndSlice} = require("./Bandcamp/help")
 const Services = require("./Bandcamp/Services")
 
@@ -7,6 +8,7 @@ const setupPorts = app => {
     // connect bandcamp
     app.ports.bandcamp_out_connection_requested.subscribe(connect(app))
     Downloader.setupPorts(app)
+    SimpleDownloader.setupPorts(app)
     Services.register()
 }
 

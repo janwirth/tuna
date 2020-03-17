@@ -11,7 +11,7 @@ Given that a url to the download page is available the steps are:
 @@TODO - catch errors
 @@TODO - integrity checks
 -}
-import Dict
+
 import Element
 import Color
 import Element.Background
@@ -19,8 +19,8 @@ import Element.Input
 import Element.Font
 import Element.Border
 import Json.Decode as Decode
-import Json.Encode as Encode
-import RemoteData
+
+
 import Bandcamp.Model
 import FileSystem
 import Element.Border

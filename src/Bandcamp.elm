@@ -3,21 +3,22 @@ port module Bandcamp exposing (..)
 import Element
 import Html.Events
 import Json.Decode as Decode
-import Json.Encode as Encode
+
 import Html
-import RemoteData exposing (WebData)
-import Time
+import RemoteData
+
 import Dict
 import Element.Input
 import Element.Font
-import Element.Background
-import Color
+
+
 import Bandcamp.Downloader
 import Bandcamp.Model
-import FileSystem
+
 import Bandcamp.Id
 import RemoteData
 import Track
+import Bandcamp.SimpleDownloader
 
 subscriptions : Bandcamp.Model.Model -> Sub Msg
 subscriptions model =
@@ -31,6 +32,8 @@ subscriptions model =
             bandcamp_in_connection_opened captureBandcampLib
           , Bandcamp.Downloader.subscriptions model.downloads
             |> Sub.map DownloaderMsg
+          , Bandcamp.SimpleDownloader.subscriptions
+            |> Sub.map SimpleDownloaderMsg
         ]
 
 port bandcamp_out_connection_requested : String -> Cmd msg
@@ -40,6 +43,7 @@ type Msg =
     CookieRetrieved Bandcamp.Model.Cookie
   | DataRetrieved (Result Decode.Error Bandcamp.Model.Library)
   | DownloaderMsg Bandcamp.Downloader.Msg
+  | SimpleDownloaderMsg Bandcamp.SimpleDownloader.Msg
   | RefreshRequested
 
 browser : Bandcamp.Model.Model -> Element.Element Msg
@@ -231,12 +235,21 @@ update msg model =
                     )
                 Err e ->
                         (model, Cmd.none)
+
         DownloaderMsg msg_ ->
             let
                 (mdl, cmd) = Bandcamp.Downloader.update msg_ model
             in
                 ( mdl
                 , Cmd.map DownloaderMsg cmd
+                )
+
+        SimpleDownloaderMsg msg_ ->
+            let
+                (simpleDownloads, cmd) = Bandcamp.SimpleDownloader.update msg_ model.simpleDownloads
+            in
+                ( {model | simpleDownloads = simpleDownloads}
+                , Cmd.map SimpleDownloaderMsg cmd
                 )
 
 extractTracksFromPurchase : (Bandcamp.Id.Id, Bandcamp.Model.Purchase) -> Track.Tracks
@@ -266,3 +279,5 @@ toTracks {library} =
             |> List.map extractTracksFromPurchase
             |> List.concat
         _ -> []
+
+

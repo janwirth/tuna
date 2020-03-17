@@ -6,6 +6,7 @@ import RemoteData
 import Time
 import FileSystem
 import Bandcamp.Id
+import Bandcamp.SimpleDownloader
 
 initDownload = RequestingAssetUrl
 
@@ -17,6 +18,7 @@ initModel =
         RemoteData.NotAsked
         Nothing
         Bandcamp.Id.emptyDict_
+        Dict.empty
 
 getItemById : Bandcamp.Id.Id -> Model -> Maybe Purchase
 getItemById id {library} =
@@ -98,6 +100,7 @@ type alias Model =
     { library : RemoteLibrary
     , cookie : Maybe Cookie
     , downloads : Downloads
+    , simpleDownloads : Bandcamp.SimpleDownloader.Downloads
     }
 
 type alias Library =
@@ -213,11 +216,12 @@ decodeMaybeLibrary =
    Decode.maybe decodeLibrary
 
 decodeModel =
-   Decode.map3
+   Decode.map4
       Model
          ( Decode.field "library" decodeRemoteLibrary )
          ( Decode.field "cookie" (Decode.maybe decodeCookie) )
          ( Decode.field "downloads" decodeDownloads )
+         ( Decode.field "simpleDownloads" Bandcamp.SimpleDownloader.decodeDownloads )
 
 decodePurchase =
    Decode.map7
@@ -343,6 +347,7 @@ encodeModel a =
       [ ("library", encodeRemoteLibrary a.library)
       , ("cookie", encodeMaybeCookie a.cookie)
       , ("downloads", encodeDownloads a.downloads)
+      , ("simpleDownloads", Bandcamp.SimpleDownloader.encodeDownloads a.simpleDownloads)
       ]
 
 encodePurchase a =
