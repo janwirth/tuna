@@ -1,3 +1,5 @@
+require("@babel/register");
+
 const Storage = require("./backend")
 const Bandcamp = require("./Bandcamp")
 const FileSystem = require("./FileSystem")

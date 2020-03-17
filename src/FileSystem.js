@@ -5,6 +5,7 @@ const mm = require('music-metadata')
 var recursive = require("recursive-readdir");
 var Queue = require('better-queue');
 const revisionHash = require('rev-hash');
+const S = require('sanctuary')
  
 const hashFile = path => {
         const file = fs.readFileSync(path)
@@ -26,17 +27,49 @@ const import_ = app => async paths => {
   readMeta(app)(flat)
 }
 
+const replaceString = S.curry3 ((what, replacement, string) =>
+  string.replace (RegExp(what, 'g'), replacement)
+)
+
+// extractGenre : Meta -> Maybe String
+const extractGenre = meta =>
+    meta.common.genre
+    && typeof meta.common.genre[0] == 'string'
+    && meta.common.genre[0].trim()
+    ? S.Just (meta.common.genre[0].trim() |> refineGenre)
+    : S.Nothing
+
+const log = d => {console.log(d); return d}
+// refineGenre : String -> String
+const refineGenre = g =>
+    g
+    |> replaceString("hip-hop")("hiphop")
+    |> replaceString("-")(":")
+    |> replaceString(" ")("")
+    |> log
+    |> (genre => `genre:${genre.toLowerCase()}`)
+
 const processOne = async path => {
     const meta = await mm.parseFile(path)
     const name = removeExtension(nameFromPath(path))
-    const tags = meta.common.genre && meta.common.genre[0] || ""
+    const bpmTag =
+        meta.common.bpm
+        ? S.Just (`bpm:${meta.common.bpm}`)
+        : S.Nothing
+    const genreTag =
+        meta
+        |> extractGenre
+    const tags =
+        [genreTag, bpmTag]
+        |> S.justs
+        |> S.unwords
     const final =
         { ...defaultExtendedMetaData
         , path
         , name : meta.common.title || name
         , ...meta.common
         , track : {no: null}
-        , tags
+        , tags : tags
         , hash : hashFile(path)
         }
     return final
