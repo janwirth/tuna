@@ -122,3 +122,6 @@ Given a music-collecting power-user that appreciates simplicity.
 - emoji selecte multiple emoji
 - enable drop-out
 
+## People to reach out to
+- karimelghamry@gmail.com - awesome mobile app
+- https://github.com/tmcw - music collector, elm
