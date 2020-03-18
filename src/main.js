@@ -2,7 +2,7 @@
 require("@babel/register");
 
 // Modules to control application life and create native browser window
-const {app, BrowserWindow} = require('electron')
+const {dialog, app, BrowserWindow} = require('electron')
 const path = require('path')
 require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.json/, argv: []});
 const { session } = require('electron')
@@ -57,6 +57,16 @@ console.log(process.versions);
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools()
+
+    dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory']
+    }).then(result => {
+      console.log(result.canceled)
+      console.log(result.filePaths)
+    }).catch(err => {
+      console.log(err)
+    })
+
 })();
 
 // Quit when all windows are closed.

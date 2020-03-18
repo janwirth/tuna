@@ -37,6 +37,7 @@ function register () {
     }
     customElements.define('audio-player', AudioPlayer)
 }
+// helper for music player
 applyNewSrc = async (this_, attr, newValue) => {
     if (attr == 'src' && this_.audio) {
         console.log(newValue)

@@ -5,6 +5,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Bandcamp
 import Bandcamp.Model
+import Device
 
 
 import Json.Decode.Extra as Extra
@@ -49,6 +50,7 @@ initModel =
     , quickTagsInputState = MultiInput.init "quick-tags-input"
     , filter = Nothing
     , rootUrl = ""
+    , devices = Device.init
     }
 
 type alias DropPayload = List TransferItem
@@ -92,6 +94,7 @@ type alias Model =
     , filter : Maybe String
     , quickTagsInputState : MultiInputState
     , rootUrl : String
+    , devices : Device.Devices
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
@@ -109,6 +112,7 @@ decodeModel =
          |> Extra.andMap (Decode.field "filter" (Decode.maybe Decode.string))
          |> Extra.andMap (Decode.field "quickTagsInputState" decodeMultiInputState)
          |> Extra.andMap (Decode.field "rootUrl" Decode.string)
+         |> Extra.andMap (Decode.field "devices" Device.decodeDevices)
 
 decodeTab =
    let
@@ -143,6 +147,7 @@ encodeModel a =
       , ("filter", encodeMaybeString a.filter)
       , ("quickTagsInputState", encodeMultiInputState a.quickTagsInputState)
       , ("rootUrl", Encode.string a.rootUrl)
+      , ("devices", Device.encodeDevices a.devices)
       ]
 
 encodeTab a =
