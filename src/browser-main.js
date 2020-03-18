@@ -6,6 +6,7 @@ const FileSystem = require("./FileSystem")
 const CustomElements = require("./custom-elements")
 const {Elm} = require("../elm-stuff/elm.js")
 const fileUrl = require("file-url")
+const Syncer = require("./Syncer")
 
 CustomElements.register()
 
@@ -35,6 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // connect file system access
   app.ports.scan_paths.subscribe(FileSystem.import_(app))
   Bandcamp.setupPorts(app)
+  Syncer.setupPorts(app)
 })
 
 // makeSeed : () => string

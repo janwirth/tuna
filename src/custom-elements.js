@@ -1,4 +1,39 @@
+const electron = require('electron')
+console.log(electron)
+
 function register () {
+    registerAudio()
+    registerDirectoryPicker()
+}
+function registerDirectoryPicker () {
+    class DirectoryPicker extends HTMLElement {
+        constructor() {
+            super()
+        }
+        connectedCallback() {
+            const dialog = electron.remote.dialog
+            this.addEventListener('click', () => {
+                dialog.showOpenDialog(electron.remote.getCurrentWindow (), {
+                  properties: ['openDirectory']
+                }).then(result => {
+                    console.log(result)
+                  console.log(result.canceled)
+                  console.log(result.filePaths)
+                  if (result.filePaths.length > 0) {
+                      const directory = result.filePaths[0]
+                      const picked = new CustomEvent('choosedirectory', {detail: {directory}})
+                      this.dispatchEvent(picked)
+                  }
+                }).catch(err => {
+                  console.log(err)
+                })
+            })
+        }
+    }
+    customElements.define('directory-picker', DirectoryPicker)
+}
+
+function registerAudio () {
     class AudioPlayer extends HTMLElement {
         constructor() {
             super()
@@ -20,11 +55,11 @@ function register () {
             this.audio.addEventListener('pause', ev => this.dispatchEvent(new Event(ev.target.ended ? 'end' : 'pause')))
         }
 
-  // Monitor the 'name' attribute for changes.
-  static get observedAttributes() {return ['name', 'src', 'playing']; }
+      // Monitor the 'name' attribute for changes.
+      static get observedAttributes() {return ['name', 'src', 'playing']; }
 
-  // Respond to attribute changes.
-  attributeChangedCallback(attr, oldValue, newValue) {
+      // Respond to attribute changes.
+      attributeChangedCallback(attr, oldValue, newValue) {
         applyNewSrc(this, attr, newValue)
         if (attr === 'playing' && newValue === "true" && this.audio) {
             if (newValue) {

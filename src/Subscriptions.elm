@@ -5,6 +5,7 @@ import Bandcamp
 import FileSystem
 import Json.Decode as Decode
 import MultiInput
+import Syncer
 
 subscriptions : Model.Model -> Sub Msg.Msg
 subscriptions model =
@@ -12,6 +13,7 @@ subscriptions model =
         [ Bandcamp.subscriptions model.bandcamp |> Sub.map Msg.BandcampMsg
         , filesystemSub
         , MultiInput.subscriptions model.quickTagsInputState |> Sub.map Msg.SetQuickTag
+        , Syncer.subscriptions |> Sub.map Msg.SyncerMsg
         ]
 
 

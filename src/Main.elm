@@ -12,6 +12,7 @@ import MusicBrowser
 import MultiInput
 import Player
 import Color
+import Syncer
 
 import Set
 
@@ -126,6 +127,11 @@ importHook msg model =
 update : Msg -> Model.Model -> (Model.Model, Cmd Msg)
 update msg model =
   case msg of
+    SyncerMsg msg_ ->
+        let
+            (syncer, cmd) = Syncer.update msg_ model.syncer
+        in
+            ({model| syncer = syncer}, cmd |> Cmd.map SyncerMsg)
     SetFilter f -> ({model | filter = f}, Cmd.none)
     SetQuickTag msg_ ->
             let

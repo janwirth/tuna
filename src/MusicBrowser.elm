@@ -17,6 +17,7 @@ import Html.Attributes
 import Track
 import FileSystem
 import Bandcamp.Model
+import Syncer
 
 import Player
 import Svg.Attributes
@@ -125,6 +126,14 @@ pendingFiles model =
         0 -> Element.none
         count -> Element.text (String.fromInt count)
 
+
+visibleTracks : Model.Model -> Track.Tracks
+visibleTracks model =
+    case model.filter of
+        Just someTag -> List.filter (\{tags} -> String.contains someTag tags) model.tracks
+        Nothing -> model.tracks
+
+
 view : Model.Model -> Element.Element Msg.Msg
 view model =
     let
@@ -142,15 +151,10 @@ view model =
             [Element.spacing 10, Element.clipY, Element.scrollbarY, Element.height Element.fill, Element.width Element.fill]
             [leftSidebar model, tracksList]
 
-
-        visibleTracks =
-            case model.filter of
-                Just someTag -> List.filter (\{tags} -> String.contains someTag tags) model.tracks
-                Nothing -> model.tracks
         bcBrowser = Bandcamp.browser
                 model.bandcamp
         tracksList =
-            case List.isEmpty visibleTracks of
+            case List.isEmpty <| visibleTracks model of
                 True ->
                     Element.paragraph
                         [Element.Font.center, Element.padding 50]
@@ -159,7 +163,7 @@ view model =
                     let
                         makeQueue : Track.Id -> Player.Queue
                         makeQueue id =
-                            visibleTracks
+                            visibleTracks model
                             |> List.Extra.splitWhen (\someTrack -> id == someTrack.id)
                             |> Maybe.andThen (Tuple.second >> List.map .id >> List.Zipper.fromList)
                             |> Maybe.withDefault (List.Zipper.singleton id)
@@ -174,7 +178,7 @@ view model =
 
                         items : List (Html.Html Msg.Msg)
                         items =
-                                [ InfiniteList.view config model.infiniteList visibleTracks
+                                [ InfiniteList.view config model.infiniteList (visibleTracks model)
                                 |> Html.map processItemMsg
                                 ]
                         infList =
@@ -215,7 +219,66 @@ leftSidebar model =
     Element.column [Element.spacing 30, Element.height Element.fill] [
         quickTagInput model
       , viewFilters model
+      , viewSyncer model
     ]
+
+extractStreamingIfOnlyStreaming : Model.Model -> Track.Track -> Maybe {track_id: String, url : String}
+extractStreamingIfOnlyStreaming model track =
+    case track.source of
+        Track.BandcampPurchase streamingUrl purchase_id ->
+            case Bandcamp.SimpleDownloader.getLocalUrl
+                model.rootUrl
+                track.id
+                model.bandcamp.simpleDownloads of
+                Nothing -> Just {track_id= track.id, url = streamingUrl}
+                Just _ -> Nothing
+
+        Track.BandcampHeart streamingUrl purchase_id ->
+            case Bandcamp.SimpleDownloader.getLocalUrl
+                model.rootUrl
+                track.id
+                model.bandcamp.simpleDownloads of
+                Nothing -> Just {track_id= track.id, url = streamingUrl}
+                Just _ -> Nothing
+
+        Track.LocalFile _ -> Nothing
+
+extractLocalSource : Model.Model -> Track.Track -> Maybe {uri: String, name: String}
+extractLocalSource model track =
+    case track.source of
+        Track.BandcampPurchase streamingUrl purchase_id ->
+            Bandcamp.SimpleDownloader.getLocalUrl
+                model.rootUrl
+                track.id
+                model.bandcamp.simpleDownloads
+            |> Maybe.map (\u -> {name = track.title ++ " - " ++ track.artist, uri = u})
+
+        Track.BandcampHeart streamingUrl purchase_id ->
+            Bandcamp.SimpleDownloader.getLocalUrl
+                model.rootUrl
+                track.id
+                model.bandcamp.simpleDownloads
+            |> Maybe.map (\u -> {name = track.title ++ " - " ++ track.artist, uri = u})
+
+        Track.LocalFile {path} -> Just {name = track.title ++ " - " ++ track.artist, uri = path}
+
+
+viewSyncer : Model.Model -> Element.Element (Msg.Msg)
+viewSyncer model =
+    let
+        missingTracks : Syncer.MissingItems
+        missingTracks =
+            visibleTracks model
+            |> List.filterMap (extractStreamingIfOnlyStreaming model)
+
+        filesToCopy : Syncer.FilesToCopy
+        filesToCopy =
+            visibleTracks model
+            |> List.filterMap (extractLocalSource model)
+            |> Debug.log "localSources"
+    in
+        Syncer.view model.bandcamp.cookie missingTracks filesToCopy model.syncer
+        |> Element.map Msg.SyncerMsg
 
 viewFilters : Model.Model -> Element.Element Msg.Msg
 viewFilters model =

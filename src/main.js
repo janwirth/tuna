@@ -58,15 +58,6 @@ console.log(process.versions);
   // Open the DevTools.
   mainWindow.webContents.openDevTools()
 
-    dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory']
-    }).then(result => {
-      console.log(result.canceled)
-      console.log(result.filePaths)
-    }).catch(err => {
-      console.log(err)
-    })
-
 })();
 
 // Quit when all windows are closed.

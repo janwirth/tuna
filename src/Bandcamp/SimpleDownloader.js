@@ -21,7 +21,6 @@ if (!fs.existsSync(TARGET_DIR)){
     fs.mkdirSync(TARGET_DIR);
 }
 
-module.exports = {setupPorts}
 
 const with_progress = ({on_complete, on_progress}) => async ({url, track_id, cookie}) => {
     var has_error = false
@@ -49,3 +48,5 @@ const with_progress = ({on_complete, on_progress}) => async ({url, track_id, coo
       })
       .pipe(createWriteStream(targetFile))
 }
+
+module.exports = {setupPorts, with_progress}

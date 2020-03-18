@@ -7,6 +7,7 @@ import Bandcamp
 import Json.Decode as Decode
 import FileSystem
 import Player
+import Syncer
 
 
 import InfiniteList
@@ -36,3 +37,4 @@ type Msg
 
   | SetQuickTag MultiInput.Msg
   | SetFilter (Maybe String)
+  | SyncerMsg Syncer.Msg

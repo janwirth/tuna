@@ -267,7 +267,7 @@ trackInfoToTrack purchase trackNumber trackInfo =
       , album = purchase.title
       , albumArtist = purchase.artist
       , tags = ""
-      , id = "bc:" ++ trackInfo.id
+      , id = "bc-track-" ++ trackInfo.id
       }
 
 toTracks : Bandcamp.Model.Model -> Track.Tracks
