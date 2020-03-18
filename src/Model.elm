@@ -76,13 +76,22 @@ type alias MultiInputState = MultiInput.State
 encodeMultiInputState _ = Encode.null
 decodeMultiInputState = Decode.succeed <| MultiInput.init "quick-tags-input-field"
 
+type alias Model = Model_
+decodeModel =
+    Decode.oneOf
+    [ decodeModel_
+    , Decode.field "tracks" Track.decodeTracks
+        |> Decode.map (\t -> {initModel | tracks = t})
+    ]
+
+encodeModel = encodeModel_
 
 -- [generator-start]
 {-| A track ID based on the hash of initial metadata -}
 type Tab = BandcampTab | LocalTab
 
 
-type alias Model =
+type alias Model_ =
     { dropZone : DropZoneModel
     , tracks : Track.Tracks
     , bandcamp : Bandcamp.Model.Model
@@ -98,9 +107,9 @@ type alias Model =
     }
 
 -- [generator-generated-start] -- DO NOT MODIFY or remove this line
-decodeModel =
+decodeModel_ =
    Decode.succeed
-      Model
+      Model_
          |> Extra.andMap (Decode.field "dropZone" decodeDropZoneModel)
          |> Extra.andMap (Decode.field "tracks" Track.decodeTracks)
          |> Extra.andMap (Decode.field "bandcamp" Bandcamp.Model.decodeModel)
@@ -134,7 +143,7 @@ encodeMaybeString a =
       Nothing->
          Encode.null
 
-encodeModel a =
+encodeModel_ a =
    Encode.object
       [ ("dropZone", encodeDropZoneModel a.dropZone)
       , ("tracks", Track.encodeTracks a.tracks)
