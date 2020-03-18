@@ -1,6 +1,3 @@
-// transpile hooks
-require("@babel/register");
-
 // Modules to control application life and create native browser window
 const {dialog, app, BrowserWindow} = require('electron')
 const path = require('path')
@@ -8,6 +5,7 @@ require('electron-reload')(__dirname, {ignored: /node_modules|[\/\\]\.|library.j
 const { session } = require('electron')
 const { register } = require('./custom-elements')
 const FileSystem = require('./FileSystem')
+const isDev = require('electron-is-dev');
 FileSystem.ensureTunaDir()
 
 // increase memory limit to prevent elm debug from choking on large lists
@@ -54,9 +52,10 @@ console.log(process.versions);
   await mainWindow.loadURL(`file://${__dirname}/../index.html`);
   // and load the index.html of the app.
   // mainWindow.loadFile('index.html')
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools()
+  if (isDev) {
+      // Open the DevTools.
+      mainWindow.webContents.openDevTools()
+  }
 
 })();
 

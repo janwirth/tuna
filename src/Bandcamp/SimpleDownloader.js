@@ -23,16 +23,18 @@ if (!fs.existsSync(TARGET_DIR)){
 
 
 const with_progress = ({on_complete, on_progress}) => async ({url, track_id, cookie}) => {
+    console.log(url)
     var has_error = false
     console.log('starting download', track_id, url, cookie)
     const targetFile = path.join(TARGET_DIR, `${track_id}.mp3`)
 
     const options = {
-      url,
+      uri: url,
       headers: {
         'Cookie': cookie
       }
     };
+    console.log(options)
     progress(request(options))
      .on('progress', state => {
           const percent = Math.round((state.percent || 0) * 100)

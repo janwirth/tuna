@@ -77,7 +77,6 @@ update msg model =
 
         (DirectoryPicked paths directory, _) ->
             (Syncing directory (List.length paths), syncer_out_copy {files = paths, to = directory})
-            |> Debug.log "picked"
 
         -- copy
         (CopiedOne, Syncing directory remaining) ->

@@ -275,7 +275,6 @@ viewSyncer model =
         filesToCopy =
             visibleTracks model
             |> List.filterMap (extractLocalSource model)
-            |> Debug.log "localSources"
     in
         Syncer.view model.bandcamp.cookie missingTracks filesToCopy model.syncer
         |> Element.map Msg.SyncerMsg

@@ -11,17 +11,18 @@ const setupPorts = app => {
     }
 
 const prepareAssets = app => async ({cookie, items}) => {
-    items.map(({track_id, params}) => {
+    console.log(items)
+    items.map((item) => {
         SimpleDownloader.with_progress(
                 { on_complete: app.ports.bandcamp_simpleDownloader_in_complete.send
                 , on_progress: app.ports.bandcamp_simpleDownloader_in_progress.send
                 }
-            )({cookie, track_id, params})
+            )({cookie, ...item})
     })
 }
 
 const copyFile = app => to => async ({uri, name}) => {
-    const file = uri2path(uri)
+    const file = uri.startsWith('file://') ? uri2path(uri) : uri
     const targetFile = path.join(to, `${name}.mp3`)
     // do not copy if file is already there
     if (fs.existsSync(targetFile)) {
@@ -30,7 +31,7 @@ const copyFile = app => to => async ({uri, name}) => {
     } else {
         fs.copyFile(file, targetFile, (err) => {
             if (err) {
-                console.err(err)
+                console.error(err)
             } else {
                 app.ports.syncer_in_copy_one_complete.send(null)
             }
