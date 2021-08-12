@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 iced = "0.3"
+rodio = "0.14"
